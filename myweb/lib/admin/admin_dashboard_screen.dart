@@ -168,10 +168,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           itemBuilder: (context, index) {
             return _SubmissionCard(
               submission: filtered[index],
-              onAccept: () =>
-                  FirestoreService.updateSubmissionStatus(filtered[index].id, 'accepted'),
-              onReject: () =>
-                  FirestoreService.updateSubmissionStatus(filtered[index].id, 'rejected'),
+              onAccept: () => FirestoreService.updateSubmissionStatus(
+                  filtered[index].id, 'accepted'),
+              onReject: () => FirestoreService.updateSubmissionStatus(
+                  filtered[index].id, 'rejected'),
             );
           },
         );
@@ -222,6 +222,8 @@ class _SubmissionCard extends StatelessWidget {
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text('Ref: ${submission.referenceNumber}'),
+            Text('Author: ${submission.author}',
+                style: const TextStyle(fontWeight: FontWeight.w500)),
             Text('Type: ${submission.submissionType}'),
             const SizedBox(height: 4),
             Chip(
@@ -257,11 +259,13 @@ class _SubmissionCard extends StatelessWidget {
             Row(
               children: [
                 if (submission.status == 'pending') ...[
-                  FilledButton(onPressed: onAccept, child: const Text('Accept')),
+                  FilledButton(
+                      onPressed: onAccept, child: const Text('Accept')),
                   const SizedBox(width: 8),
                   OutlinedButton(
                     onPressed: onReject,
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                    style:
+                        OutlinedButton.styleFrom(foregroundColor: Colors.red),
                     child: const Text('Reject'),
                   ),
                 ],
@@ -290,7 +294,8 @@ class _SubmissionCard extends StatelessWidget {
                         mimeType: 'text/plain',
                         encoding: utf8,
                       ).toString();
-                      await launchUrlString(encoded, webOnlyWindowName: '_blank');
+                      await launchUrlString(encoded,
+                          webOnlyWindowName: '_blank');
                     },
                   ),
 
@@ -307,7 +312,8 @@ class _SubmissionCard extends StatelessWidget {
                           build: (context) => pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
-                              pw.Text('Reference: ${submission.referenceNumber}',
+                              pw.Text(
+                                  'Reference: ${submission.referenceNumber}',
                                   style: pw.TextStyle(
                                       fontSize: 14,
                                       fontWeight: pw.FontWeight.bold)),
