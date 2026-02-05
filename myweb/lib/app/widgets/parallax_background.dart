@@ -17,9 +17,12 @@ class ParallaxBackground extends StatefulWidget {
 class _ParallaxBackgroundState extends State<ParallaxBackground> {
   final ValueNotifier<Offset> _mousePosNotifier = ValueNotifier(Offset.zero);
 
+  final ValueNotifier<Offset> _localMousePosNotifier = ValueNotifier(Offset.zero);
+
   @override
   void dispose() {
     _mousePosNotifier.dispose();
+    _localMousePosNotifier.dispose();
     super.dispose();
   }
 
@@ -36,6 +39,7 @@ class _ParallaxBackgroundState extends State<ParallaxBackground> {
     );
 
     _mousePosNotifier.value = offset;
+    _localMousePosNotifier.value = event.localPosition;
   }
 
   @override
@@ -69,12 +73,13 @@ class _ParallaxBackgroundState extends State<ParallaxBackground> {
 
           // ---------------- LAYER 1: Deep Blobs (Slower) ----------------
           // Top Right Blob
-          _ParallaxLayer(
-            mousePosNotifier: _mousePosNotifier,
-            movementFactor: 15.0, // Move max 15px opposite to cursor
-            child: Positioned(
-              top: -150,
-              right: -50,
+          // Top Right Blob
+          Positioned(
+            top: -150,
+            right: -50,
+            child: _ParallaxLayer(
+              mousePosNotifier: _mousePosNotifier,
+              movementFactor: 15.0, // Move max 15px opposite to cursor
               child: Container(
                 width: 400,
                 height: 400,
@@ -94,12 +99,13 @@ class _ParallaxBackgroundState extends State<ParallaxBackground> {
           ),
 
           // Bottom Left Blob
-          _ParallaxLayer(
-            mousePosNotifier: _mousePosNotifier,
-            movementFactor: 25.0, // Move max 25px
-            child: Positioned(
-              bottom: -100,
-              left: -100,
+          // Bottom Left Blob
+          Positioned(
+            bottom: -100,
+            left: -100,
+            child: _ParallaxLayer(
+              mousePosNotifier: _mousePosNotifier,
+              movementFactor: 25.0, // Move max 25px
               child: Container(
                 width: 300,
                 height: 300,
@@ -117,20 +123,75 @@ class _ParallaxBackgroundState extends State<ParallaxBackground> {
               ),
             ),
           ),
-
-          // ---------------- LAYER 2: Main Content (Very subtle or static) ----------------
-          // User requested "Cards (very subtle)" - we can apply a tiny movement to the content wrapper if desired,
-          // but for now, let's keep the content static for readability as per "DO NOT affect text readability".
-          // If we want to add depth, we can wrap the child in a layer with factor 5.0.
           
-           _ParallaxLayer(
-             mousePosNotifier: _mousePosNotifier,
-             movementFactor: 5.0, // Very subtle foreground movement
-             child: widget.child,
-           ),
+          // ---------------- LAYER 1.5: Dot Matrix Flashlight ----------------
+          ValueListenableBuilder<Offset>(
+            valueListenable: _localMousePosNotifier,
+            builder: (context, localPos, child) {
+              return Positioned.fill(
+                child: CustomPaint(
+                  painter: _DotMatrixPainter(
+                    mousePosition: localPos,
+                    color: Colors.white, // White dots for contrast
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // ---------------- LAYER 2: Main Content (Static) ----------------
+          // Content remains fixed as per user request to ensure readability and usability.
+          widget.child,
         ],
       ),
     );
+  }
+}
+
+class _DotMatrixPainter extends CustomPainter {
+  final Offset mousePosition;
+  final Color color;
+
+  _DotMatrixPainter({required this.mousePosition, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    const double spacing = 40.0; // Grid spacing
+    const double revealRadius = 300.0; // Radius of flashlight
+
+    // Calculate loop bounds to only draw dots near the mouse (Performance optimization)
+    final double startX = ((mousePosition.dx - revealRadius) / spacing).floor() * spacing;
+    final double endX = ((mousePosition.dx + revealRadius) / spacing).ceil() * spacing;
+    final double startY = ((mousePosition.dy - revealRadius) / spacing).floor() * spacing;
+    final double endY = ((mousePosition.dy + revealRadius) / spacing).ceil() * spacing;
+
+    for (double x = startX; x <= endX; x += spacing) {
+      for (double y = startY; y <= endY; y += spacing) {
+        final dotOffset = Offset(x, y);
+        final distance = (dotOffset - mousePosition).distance;
+
+        if (distance < revealRadius) {
+          // Calculate opacity: 1.0 at center, 0.0 at radius edge
+          double opacity = (1.0 - (distance / revealRadius)).clamp(0.0, 1.0);
+          
+          // Apply a square curve for smoother falloff
+          opacity = opacity * opacity; 
+
+          // Max opacity 0.4 for subtlety
+          paint.color = color.withOpacity(opacity * 0.4); 
+          canvas.drawCircle(dotOffset, 1.5, paint);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DotMatrixPainter oldDelegate) {
+    return oldDelegate.mousePosition != mousePosition || oldDelegate.color != color;
   }
 }
 
