@@ -23,6 +23,7 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _statusFilter = 'all';
+  String _typeFilter = 'all';
 
   @override
   void dispose() {
@@ -92,8 +93,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.settings),
-            title: const Text('Settings (later)'),
-            onTap: () {},
+            title: const Text('Settings'),
+            onTap: () {
+              Navigator.pop(context);
+              _showSettingsDialog();
+            },
           ),
         ],
       ),
@@ -107,30 +111,69 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         elevation: 2,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
+          child: Column(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Search by reference or title',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                    isDense: true,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Search by reference, title, or author',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-              const SizedBox(width: 12),
-              DropdownButton<String>(
-                value: _statusFilter,
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All')),
-                  DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                  DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                  DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                 ],
-                onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  // Status filter
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _statusFilter,
+                      decoration: const InputDecoration(
+                        labelText: 'Status',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('All Status')),
+                        DropdownMenuItem(value: 'submitted', child: Text('Submitted')),
+                        DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                        DropdownMenuItem(value: 'under_review', child: Text('Under Review')),
+                        DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                        DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                        DropdownMenuItem(value: 'revision_requested', child: Text('Revision Requested')),
+                      ],
+                      onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Type filter
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _typeFilter,
+                      decoration: const InputDecoration(
+                        labelText: 'Type',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('All Types')),
+                        DropdownMenuItem(value: 'abstract', child: Text('Abstract')),
+                        DropdownMenuItem(value: 'fullpaper', child: Text('Full Paper')),
+                      ],
+                      onChanged: (v) => setState(() => _typeFilter = v ?? 'all'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -168,10 +211,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           itemBuilder: (context, index) {
             return _SubmissionCard(
               submission: filtered[index],
-              onAccept: () => FirestoreService.updateSubmissionStatus(
-                  filtered[index].id, 'accepted'),
-              onReject: () => FirestoreService.updateSubmissionStatus(
-                  filtered[index].id, 'rejected'),
+              onReview: () => _showReviewDialog(filtered[index]),
             );
           },
         );
@@ -185,12 +225,185 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return list.where((s) {
       final matchesSearch = query.isEmpty ||
           s.referenceNumber.toLowerCase().contains(query) ||
-          s.title.toLowerCase().contains(query);
+          s.title.toLowerCase().contains(query) ||
+          s.authorsDisplay.toLowerCase().contains(query);
 
       final matchesStatus = _statusFilter == 'all' || s.status == _statusFilter;
+      final matchesType = _typeFilter == 'all' || s.submissionType == _typeFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesType;
     }).toList();
+  }
+
+  Future<void> _showSettingsDialog() async {
+    // Get current settings
+    final settings = await FirestoreService.getAppSettings();
+    bool abstractOpen = settings.abstractSubmissionOpen;
+    bool fullPaperOpen = settings.fullPaperSubmissionOpen;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Submission Settings'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Abstract Submission'),
+                subtitle: Text(abstractOpen ? 'Open' : 'Closed'),
+                value: abstractOpen,
+                onChanged: (value) async {
+                  setDialogState(() => abstractOpen = value);
+                  await FirestoreService.setAbstractSubmissionOpen(value);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Full Paper Submission'),
+                subtitle: Text(fullPaperOpen ? 'Open' : 'Closed'),
+                value: fullPaperOpen,
+                onChanged: (value) async {
+                  setDialogState(() => fullPaperOpen = value);
+                  await FirestoreService.setFullPaperSubmissionOpen(value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showReviewDialog(Submission submission) async {
+    String selectedStatus = submission.status;
+    final commentsController = TextEditingController(text: submission.reviewComments ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Review: ${submission.referenceNumber}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  submission.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 16),
+                
+                // Authors info
+                if (submission.authors.isNotEmpty) ...[
+                  const Text('Authors:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  ...submission.authors.map((a) => Padding(
+                    padding: const EdgeInsets.only(left: 8, bottom: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${a.isMainAuthor ? "• " : "  "}${a.name}${a.isMainAuthor ? " (Main)" : ""}',
+                          style: TextStyle(
+                            fontWeight: a.isMainAuthor ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                        if (a.affiliation.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16),
+                            child: Text(
+                              a.affiliation,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                          ),
+                        if (a.email != null && a.email!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16),
+                            child: Text(
+                              a.email!,
+                              style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
+                            ),
+                          ),
+                      ],
+                    ),
+                  )),
+                  const SizedBox(height: 16),
+                ],
+
+                // Status dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'submitted', child: Text('Submitted')),
+                    DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                    DropdownMenuItem(value: 'under_review', child: Text('Under Review')),
+                    DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                    DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                    DropdownMenuItem(value: 'revision_requested', child: Text('Revision Requested')),
+                  ],
+                  onChanged: (v) => setDialogState(() => selectedStatus = v ?? 'pending'),
+                ),
+                const SizedBox(height: 16),
+
+                // Review comments
+                TextField(
+                  controller: commentsController,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Review Comments',
+                    hintText: 'Add feedback for the author...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await FirestoreService.updateSubmissionStatusWithReview(
+                    docId: submission.id,
+                    status: selectedStatus,
+                    reviewedBy: AuthService.currentUser?.uid ?? '',
+                    reviewComments: commentsController.text.trim(),
+                  );
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Review saved successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              },
+              child: const Text('Save Review'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -198,13 +411,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
 class _SubmissionCard extends StatelessWidget {
   final Submission submission;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
+  final VoidCallback onReview;
 
   const _SubmissionCard({
     required this.submission,
-    required this.onAccept,
-    required this.onReject,
+    required this.onReview,
   });
 
   @override
@@ -217,17 +428,51 @@ class _SubmissionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(submission.title,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            // Title and type badge
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    submission.title,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: submission.submissionType == 'fullpaper' 
+                        ? Colors.purple.shade100 
+                        : Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    submission.submissionType == 'fullpaper' ? 'Full Paper' : 'Abstract',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: submission.submissionType == 'fullpaper' 
+                          ? Colors.purple.shade700 
+                          : Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
+            
+            // Reference
             Text('Ref: ${submission.referenceNumber}'),
-            Text('Author: ${submission.author}',
-                style: const TextStyle(fontWeight: FontWeight.w500)),
-            Text('Type: ${submission.submissionType}'),
+            
+            // Authors
+            Text(
+              'Authors: ${submission.authorsDisplay}',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            
             const SizedBox(height: 4),
+            
+            // Status chip
             Chip(
-              label: Text(submission.status.toUpperCase()),
+              label: Text(_statusLabel(submission.status)),
               backgroundColor: Color.fromRGBO(
                 _statusColor(submission.status).red,
                 _statusColor(submission.status).green,
@@ -236,46 +481,70 @@ class _SubmissionCard extends StatelessWidget {
               ),
               labelStyle: TextStyle(color: _statusColor(submission.status)),
             ),
+            
             if (submission.createdAt != null)
               Text(
                 'Submitted: ${DateFormat.yMMMd().add_Hm().format(submission.createdAt!)}',
                 style: const TextStyle(fontSize: 12),
               ),
-            const SizedBox(height: 8),
 
-            // 🔹 Preview extracted text
+            // Review comments preview
+            if (submission.reviewComments != null && submission.reviewComments!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.comment, size: 16, color: Colors.amber.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          submission.reviewComments!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Preview extracted text
             if (submission.extractedText != null &&
                 submission.extractedText!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
                   submission.extractedText!,
-                  maxLines: 5,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
 
             const SizedBox(height: 10),
+            
+            // Action buttons
             Row(
               children: [
-                if (submission.status == 'pending') ...[
-                  FilledButton(
-                      onPressed: onAccept, child: const Text('Accept')),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: onReject,
-                    style:
-                        OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                    child: const Text('Reject'),
-                  ),
-                ],
+                // Review button
+                FilledButton.icon(
+                  onPressed: onReview,
+                  icon: const Icon(Icons.rate_review, size: 18),
+                  label: const Text('Review'),
+                ),
                 const Spacer(),
 
-                // Open PDF URL
+                // Download PDF
                 if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
                   IconButton(
-                    tooltip: 'Open PDF',
-                    icon: const Icon(Icons.open_in_new),
+                    tooltip: 'Download PDF',
+                    icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
                     onPressed: () async {
                       await launchUrlString(submission.pdfUrl!,
                           webOnlyWindowName: '_blank');
@@ -303,8 +572,8 @@ class _SubmissionCard extends StatelessWidget {
                 if (submission.extractedText != null &&
                     submission.extractedText!.isNotEmpty)
                   IconButton(
-                    tooltip: 'Download PDF',
-                    icon: const Icon(Icons.picture_as_pdf),
+                    tooltip: 'Export as PDF',
+                    icon: const Icon(Icons.download),
                     onPressed: () async {
                       final pdf = pw.Document();
                       pdf.addPage(
@@ -319,7 +588,7 @@ class _SubmissionCard extends StatelessWidget {
                                       fontWeight: pw.FontWeight.bold)),
                               pw.Text('Title: ${submission.title}',
                                   style: pw.TextStyle(fontSize: 12)),
-                              pw.Text('Author: ${submission.author}',
+                              pw.Text('Authors: ${submission.authorsDisplay}',
                                   style: pw.TextStyle(fontSize: 12)),
                               pw.SizedBox(height: 10),
                               pw.Text(submission.extractedText!,
@@ -346,12 +615,29 @@ class _SubmissionCard extends StatelessWidget {
     );
   }
 
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'under_review':
+        return 'UNDER REVIEW';
+      case 'revision_requested':
+        return 'REVISION REQUESTED';
+      default:
+        return status.toUpperCase();
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'accepted':
         return Colors.green;
       case 'rejected':
         return Colors.red;
+      case 'under_review':
+        return Colors.blue;
+      case 'revision_requested':
+        return Colors.orange;
+      case 'submitted':
+        return Colors.teal;
       default:
         return Colors.orange;
     }

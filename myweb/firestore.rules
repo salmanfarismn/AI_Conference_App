@@ -10,16 +10,36 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+
     match /users/{userId} {
       allow read, write: if isOwner(userId);
     }
 
     match /submissions/{submissionId} {
-      allow read, create, update, delete: if isSignedIn();
+      // Anyone signed in can create submissions
+      allow create: if isSignedIn();
+      
+      // Users can read their own submissions, admins can read all
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      
+      // Users can update their own submissions (except status/review fields)
+      // Admins can update any submission (including status/review)
+      allow update: if isSignedIn() && (
+        (resource.data.uid == request.auth.uid && 
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'reviewedBy', 'reviewedAt', 'reviewComments'])) ||
+        isAdmin()
+      );
+      
+      // Only admins can delete submissions
+      allow delete: if isAdmin();
     }
 
     match /app_settings/{doc} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     match /counters/{doc} {

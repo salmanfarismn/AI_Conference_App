@@ -5,6 +5,7 @@ import '../../models/app_settings.dart';
 import 'welcome_screen.dart';
 import 'submission_status_screen.dart';
 import 'submit_paper_screen.dart';
+import 'full_paper_submission_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -134,7 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _navigateToSubmit(BuildContext context, String type) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SubmitPaperScreen(submissionType: type),
+        builder: (_) => type == 'fullpaper'
+            ? const FullPaperSubmissionScreen()
+            : SubmitPaperScreen(submissionType: type),
       ),
     );
   }
