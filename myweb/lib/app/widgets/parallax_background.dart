@@ -71,6 +71,61 @@ class _ParallaxBackgroundState extends State<ParallaxBackground> {
             ),
           ),
 
+          // ---------------- LAYER 0.5: Floating Rockets ----------------
+          // Top Left Rocket - Higher speed (closer)
+          Positioned(
+            top: 100,
+            left: 50,
+            child: _ParallaxLayer(
+              mousePosNotifier: _mousePosNotifier,
+              movementFactor: 20.0,
+              child: Transform.rotate(
+                angle: -0.5,
+                child: Icon(
+                  Icons.rocket_launch_rounded,
+                  size: 60,
+                  color: Colors.white.withOpacity(0.05),
+                ),
+              ),
+            ),
+          ),
+          
+          // Center Right Rocket - Medium
+          Positioned(
+            top: MediaQuery.of(context).size.height * 0.4,
+            right: 80,
+            child: _ParallaxLayer(
+              mousePosNotifier: _mousePosNotifier,
+              movementFactor: 12.0,
+              child: Transform.rotate(
+                angle: 0.2,
+                child: Icon(
+                  Icons.rocket_launch_rounded,
+                  size: 80,
+                  color: Colors.white.withOpacity(0.04),
+                ),
+              ),
+            ),
+          ),
+
+          // Bottom Left Rocket - Large, slow (farther background feel, or just large accent)
+          Positioned(
+            bottom: 150,
+            left: 100,
+            child: _ParallaxLayer(
+              mousePosNotifier: _mousePosNotifier,
+              movementFactor: 8.0,
+              child: Transform.rotate(
+                angle: -0.2,
+                child: Icon(
+                  Icons.rocket_launch_rounded,
+                  size: 120,
+                  color: Colors.white.withOpacity(0.03),
+                ),
+              ),
+            ),
+          ),
+
           // ---------------- LAYER 1: Deep Blobs (Slower) ----------------
           // Top Right Blob
           // Top Right Blob
@@ -147,7 +202,6 @@ class _ParallaxBackgroundState extends State<ParallaxBackground> {
     );
   }
 }
-
 class _DotMatrixPainter extends CustomPainter {
   final Offset mousePosition;
   final Color color;

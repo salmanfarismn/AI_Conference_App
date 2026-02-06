@@ -8,6 +8,7 @@ import 'welcome_screen.dart';
 import 'submission_status_screen.dart';
 import 'submit_paper_screen.dart';
 import 'full_paper_submission_screen.dart';
+import '../widgets/glass_navbar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -58,28 +59,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       data: darkTheme,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          title: FutureBuilder(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(80),
+          child: FutureBuilder(
             future: AuthService.getCurrentUserProfile(),
             builder: (context, snapshot) {
-              final name = snapshot.data?.name ?? 'Conference Submissions';
-              return Text(
-                snapshot.connectionState == ConnectionState.done && snapshot.hasData 
-                  ? '${snapshot.data?.name} - Conference' 
-                  : 'Conference Submissions',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              return GlassNavbar(
+                onLogout: _logout,
+                userName: snapshot.data?.name ?? 'Conference Attendee',
               );
             },
           ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              onPressed: _logout,
-              tooltip: 'Logout',
-            ),
-          ],
         ),
         body: ParallaxBackground(
           child: Stack(
