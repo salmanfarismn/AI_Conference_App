@@ -125,4 +125,61 @@ class FirestoreService {
   static Future<void> updateAppSetting(String key, bool value) async {
     await _appSettings.set({key: value}, SetOptions(merge: true));
   }
+
+  // ——— Full Paper Submission ———
+  
+  /// Add a full paper submission with multiple authors and PDF.
+  static Future<String> addFullPaperSubmission({
+    required String uid,
+    required String title,
+    required List<Map<String, dynamic>> authors,
+    required String pdfUrl,
+    String? referenceNumber,
+  }) async {
+    final refNumber = referenceNumber ?? await getNextReferenceNumber();
+    final docRef = _submissions.doc();
+
+    final data = <String, dynamic>{
+      'uid': uid,
+      'referenceNumber': refNumber,
+      'title': title,
+      'authors': authors,
+      'pdfUrl': pdfUrl,
+      'status': 'submitted',
+      'submissionType': 'fullpaper',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    await docRef.set(data);
+    return docRef.id;
+  }
+
+  /// Update submission status with review comments (admin only).
+  static Future<void> updateSubmissionStatusWithReview({
+    required String docId,
+    required String status,
+    required String reviewedBy,
+    String? reviewComments,
+  }) async {
+    final data = <String, dynamic>{
+      'status': status,
+      'reviewedBy': reviewedBy,
+      'reviewedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    
+    if (reviewComments != null && reviewComments.isNotEmpty) {
+      data['reviewComments'] = reviewComments;
+    }
+
+    await _submissions.doc(docId).update(data);
+  }
+
+  /// Get a single submission by ID.
+  static Future<Submission?> getSubmissionById(String docId) async {
+    final doc = await _submissions.doc(docId).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return Submission.fromDoc(doc.id, doc.data()!);
+  }
 }

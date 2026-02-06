@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'dart:typed_data';
 import 'dart:convert';
 
@@ -8,6 +9,7 @@ import 'package:xml/xml.dart' as xml;
 
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
+import '../widgets/parallax_background.dart';
 import 'home_screen.dart';
 import 'welcome_screen.dart';
 
@@ -23,15 +25,26 @@ class SubmitPaperScreen extends StatefulWidget {
   State<SubmitPaperScreen> createState() => _SubmitPaperScreenState();
 }
 
-class _SubmitPaperScreenState extends State<SubmitPaperScreen> {
+class _SubmitPaperScreenState extends State<SubmitPaperScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
 
   PlatformFile? _pickedFile;
   bool _uploading = false;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+  }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _titleController.dispose();
     _authorController.dispose();
     super.dispose();
@@ -174,52 +187,271 @@ class _SubmitPaperScreenState extends State<SubmitPaperScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Submit $_typeLabel'),
+    // Custom Indigo/Violet Dark Theme
+    const primaryIndigo = Color(0xFF6200EA); // Deep Indigo
+    const accentViolet = Color(0xFF7C4DFF); // Violet
+    
+    final darkTheme = ThemeData.dark().copyWith(
+      colorScheme: const ColorScheme.dark(
+        primary: accentViolet,
+        secondary: primaryIndigo, 
+        surface: Color(0xFF0F0E1C),
+        error: Color(0xFFFF5252),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.2),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: accentViolet, width: 1.5),
+        ),
+        labelStyle: TextStyle(color: Colors.white70),
+        prefixIconColor: Colors.white60,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      ),
+      textTheme: const TextTheme(
+        titleLarge: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+        bodyLarge: TextStyle(color: Colors.white),
+      ),
+    );
+
+    return Theme(
+      data: darkTheme,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          title: Text('Submit $_typeLabel'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: ParallaxBackground(
+          child: SafeArea(
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                child: Center(
+                  child: SizedBox(
+                    // Taking half of the horizontal space
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: FadeTransition(
+                        opacity: _animationController,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 10),
+                            Center(
+                              child: Text(
+                                'Submit Your $_typeLabel',
+                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                             Center(
+                              child: Text(
+                                'Share your findings with the world.',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Colors.white60,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+
+                            // Paper Info Section
+                            _buildGlassSection(
+                              title: 'Submission Details',
+                              icon: Icons.description_rounded,
+                              children: [
+                                TextField(
+                                  controller: _titleController,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Title',
+                                    prefixIcon: Icon(Icons.title_rounded),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _authorController,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Author Name',
+                                    prefixIcon: Icon(Icons.person_rounded),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
+                            // File Upload
+                            _buildUploadSection(accentViolet),
+
+                            const SizedBox(height: 40),
+
+                            // Submit Button
+                            SizedBox(
+                              height: 56,
+                              child: ElevatedButton(
+                                onPressed: _uploading ? null : _submit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: accentViolet,
+                                  foregroundColor: Colors.white,
+                                  shadowColor: accentViolet.withOpacity(0.5),
+                                  elevation: 8,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: _uploading
+                                    ? const SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white70,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'SUBMIT',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: const Color(0xFF1E1B4B).withOpacity(0.4), // Dark Indigo tint
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7C4DFF).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: const Color(0xFF7C4DFF)),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ...children,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUploadSection(Color accentColor) {
+    final bool hasFile = _pickedFile != null;
+    return GestureDetector(
+      onTap: _uploading ? null : _pickDocument,
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: hasFile 
+              ? accentColor.withOpacity(0.05) 
+              : Colors.black.withOpacity(0.2),
+          border: Border.all(
+            color: hasFile 
+                ? accentColor 
+                : Colors.white.withOpacity(0.15),
+            style: BorderStyle.solid,
+            width: hasFile ? 2 : 1,
+          ), 
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.title),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: hasFile 
+                    ? accentColor.withOpacity(0.2) 
+                    : Colors.white.withOpacity(0.05),
+              ),
+              child: Icon(
+                hasFile ? Icons.check_rounded : Icons.cloud_upload_outlined,
+                size: 40,
+                color: hasFile ? accentColor : Colors.white60,
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _authorController,
-              decoration: const InputDecoration(
-                labelText: 'Author',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
+            Text(
+              hasFile ? _pickedFile!.name : 'Click to Upload Document (.docx)',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: hasFile ? Colors.white : Colors.white70,
               ),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: _uploading ? null : _pickDocument,
-              icon: const Icon(Icons.attach_file),
-              label: Text(
-                _pickedFile == null
-                    ? 'Select Word document (.docx)'
-                    : 'Selected: ${_pickedFile!.name}',
-              ),
-            ),
-            const SizedBox(height: 32),
-            FilledButton(
-              onPressed: _uploading ? null : _submit,
-              child: _uploading
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Submit'),
             ),
           ],
         ),

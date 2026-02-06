@@ -5,7 +5,7 @@ class AppSettings {
 
   AppSettings({
     this.abstractSubmissionOpen = true,
-    this.fullPaperSubmissionOpen = false,
+    this.fullPaperSubmissionOpen = true,
   });
 
   factory AppSettings.fromMap(Map<String, dynamic>? data) {
