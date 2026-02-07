@@ -312,7 +312,7 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
                               const SizedBox(height: 10),
                               Center(
                                 child: Text(
-                                  'Submit Your Research',
+                                  'Submit Your Paper',
                                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -328,7 +328,11 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
                                       ),
                                 ),
                               ),
-                              const SizedBox(height: 40),
+                              const SizedBox(height: 32),
+
+                              // Guidelines Section
+                              _buildGuidelinesSection(),
+                              const SizedBox(height: 32),
 
                               // Paper Info
                               _buildGlassSection(
@@ -649,6 +653,116 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuidelinesSection() {
+    final guidelines = [
+      'All submissions must be original and should not have been published or presented elsewhere in any form.',
+      'The Full-text paper should include Title, abstract, keywords, introduction, methodology, results, conclusion and references.',
+      'The Title of the paper should be followed by the author\'s name, designation, Name of the Organization/Institution/University, email ID and mobile number and details of the co-author(s) if any.',
+      'All authors must submit a \'declaration of originality\' along with the paper.',
+      'Papers must be submitted in Ms Word format, single-column layout with justified margins.',
+      'The heading should be bold with font size 14 and sub-headings in font-size 12 bold and Times New Roman left aligned. The main text should be in font size 12, Times New Roman, 1.5 spacing and justified.',
+      'The full-length paper can be a maximum of 6-8 pages in length including references, in a single-column format.',
+      'Proper citations and references are mandatory. The authors must follow the IEEE referencing style.',
+      'All papers will undergo a peer-review process.',
+      'All accepted and presented papers will be included in the Proceedings of the Institution with ISBN.',
+      'Each presentation will be 8–10 minutes, followed by 2–3 minutes of Q&A. All submitted papers will be checked for plagiarism. The similarity index and the AI-generated content together should not exceed 15%.',
+      'Registration will be confirmed only after payment of registration fee.',
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: const Color(0xFF1E1B4B).withOpacity(0.4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              initiallyExpanded: true,
+              tilePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              childrenPadding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C4DFF).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.rule_rounded, color: Color(0xFF7C4DFF)),
+              ),
+              title: const Text(
+                'Guidelines for Paper Submission',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              iconColor: Colors.white70,
+              collapsedIconColor: Colors.white70,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: guidelines.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final guideline = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 18),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            margin: const EdgeInsets.only(right: 16, top: 2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF7C4DFF).withOpacity(0.2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: Color(0xFF7C4DFF),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              guideline,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 15,
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
