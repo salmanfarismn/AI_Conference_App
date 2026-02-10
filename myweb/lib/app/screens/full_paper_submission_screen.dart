@@ -6,7 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../models/author.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
-import '../../services/storage_service.dart';
+import '../../services/cloudinary_service.dart';
 import '../widgets/parallax_background.dart';
 import 'home_screen.dart';
 
@@ -32,6 +32,9 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
   
   PlatformFile? _pickedFile;
   bool _uploading = false;
+  bool _checkingEligibility = true;
+  bool _isEligible = false;
+  String? _acceptedAbstractRef;
   late AnimationController _animationController;
 
   @override
@@ -41,6 +44,34 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..forward();
+    _checkEligibility();
+  }
+
+  Future<void> _checkEligibility() async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) {
+      setState(() {
+        _checkingEligibility = false;
+        _isEligible = false;
+      });
+      return;
+    }
+
+    try {
+      final acceptedAbstract = await FirestoreService.getAcceptedAbstract(uid);
+      if (!mounted) return;
+      setState(() {
+        _checkingEligibility = false;
+        _isEligible = acceptedAbstract != null;
+        _acceptedAbstractRef = acceptedAbstract?.referenceNumber;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _checkingEligibility = false;
+        _isEligible = false;
+      });
+    }
   }
 
   @override
@@ -170,8 +201,8 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
       // Get reference number first
       final referenceNumber = await FirestoreService.getNextReferenceNumber();
 
-      // Upload PDF
-      final pdfUrl = await StorageService.uploadFullPaperPdf(
+      // Upload PDF to Cloudinary
+      final pdfUrl = await CloudinaryService.uploadFullPaperPdf(
         bytes: bytes,
         referenceNumber: referenceNumber,
       );
@@ -240,6 +271,88 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
 
   // ——— UI Components ———
 
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+          SizedBox(height: 16),
+          Text(
+            'Checking eligibility...',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIneligibleState(Color accentColor) {
+    return Center(
+      child: FadeTransition(
+        opacity: _animationController,
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            color: const Color(0xFF1E1B4B).withOpacity(0.4),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.orange.withOpacity(0.15),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 48,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Not Eligible for Full Paper Submission',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'You need to have an accepted abstract before you can submit a full paper.\n\n'
+                'Please submit your abstract first and wait for it to be reviewed and accepted.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white60,
+                      height: 1.5,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('Go Back'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Custom Indigo/Violet Dark Theme
@@ -296,10 +409,15 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
               child: ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
                 child: Center(
-                  child: SizedBox(
-                     // Taking half of the horizontal space
-                    width: MediaQuery.of(context).size.width * 0.5,
-                    child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 700),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _checkingEligibility
+                        ? _buildLoadingState()
+                        : !_isEligible
+                            ? _buildIneligibleState(accentViolet)
+                            : SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Form(
@@ -309,6 +427,29 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              // Show accepted abstract reference
+                              if (_acceptedAbstractRef != null)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Your abstract ($_acceptedAbstractRef) has been accepted. You can now submit your full paper.',
+                                          style: const TextStyle(color: Colors.green, fontSize: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               const SizedBox(height: 10),
                               Center(
                                 child: Text(
@@ -330,9 +471,6 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
                               ),
                               const SizedBox(height: 32),
 
-                              // Guidelines Section
-                              _buildGuidelinesSection(),
-                              const SizedBox(height: 32),
 
                               // Paper Info
                               _buildGlassSection(
@@ -448,6 +586,7 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
                       ),
                     ),
                   ),
+                  ),
                 ),
               ),
             ),
@@ -531,68 +670,77 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
   }) {
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: nameCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (v) => _validateRequired(v, 'Name'),
-              ),
+        _buildResponsiveFormRow(
+          TextFormField(
+            controller: nameCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: 'Full Name',
+              prefixIcon: Icon(Icons.person_outline),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: affCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Affiliation',
-                  prefixIcon: Icon(Icons.business_outlined),
-                ),
-                validator: (v) => _validateRequired(v, 'Affiliation'),
-              ),
+            validator: (v) => _validateRequired(v, 'Name'),
+          ),
+          TextFormField(
+            controller: affCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: 'Affiliation',
+              prefixIcon: Icon(Icons.business_outlined),
             ),
-          ],
+            validator: (v) => _validateRequired(v, 'Affiliation'),
+          ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: emailCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: isOptionalEmailPhone ? 'Email (Optional)' : 'Email',
-                  prefixIcon: const Icon(Icons.email_outlined),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: isOptionalEmailPhone
-                    ? (v) => v != null && v.isNotEmpty ? _validateEmail(v) : null
-                    : _validateEmail,
-              ),
+        _buildResponsiveFormRow(
+          TextFormField(
+            controller: emailCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: isOptionalEmailPhone ? 'Email (Optional)' : 'Email',
+              prefixIcon: const Icon(Icons.email_outlined),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: phoneCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: isOptionalEmailPhone ? 'Phone (Optional)' : 'Phone',
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                ),
-                keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d\s\-\+\(\)]')),
-                ],
-                validator: isOptionalEmailPhone ? null : _validatePhone,
-              ),
+            keyboardType: TextInputType.emailAddress,
+            validator: isOptionalEmailPhone
+                ? (v) => v != null && v.isNotEmpty ? _validateEmail(v) : null
+                : _validateEmail,
+          ),
+          TextFormField(
+            controller: phoneCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: isOptionalEmailPhone ? 'Phone (Optional)' : 'Phone',
+              prefixIcon: const Icon(Icons.phone_outlined),
             ),
-          ],
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[\d\s\-\+\(\)]')),
+            ],
+            validator: isOptionalEmailPhone ? null : _validatePhone,
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildResponsiveFormRow(Widget first, Widget second) {
+    bool isMobile = MediaQuery.of(context).size.width <= 640;
+
+    if (isMobile) {
+      return Column(
+        children: [
+          first,
+          const SizedBox(height: 16),
+          second,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: first),
+        const SizedBox(width: 16),
+        Expanded(child: second),
       ],
     );
   }
@@ -658,115 +806,7 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
     );
   }
 
-  Widget _buildGuidelinesSection() {
-    final guidelines = [
-      'All submissions must be original and should not have been published or presented elsewhere in any form.',
-      'The Full-text paper should include Title, abstract, keywords, introduction, methodology, results, conclusion and references.',
-      'The Title of the paper should be followed by the author\'s name, designation, Name of the Organization/Institution/University, email ID and mobile number and details of the co-author(s) if any.',
-      'All authors must submit a \'declaration of originality\' along with the paper.',
-      'Papers must be submitted in Ms Word format, single-column layout with justified margins.',
-      'The heading should be bold with font size 14 and sub-headings in font-size 12 bold and Times New Roman left aligned. The main text should be in font size 12, Times New Roman, 1.5 spacing and justified.',
-      'The full-length paper can be a maximum of 6-8 pages in length including references, in a single-column format.',
-      'Proper citations and references are mandatory. The authors must follow the IEEE referencing style.',
-      'All papers will undergo a peer-review process.',
-      'All accepted and presented papers will be included in the Proceedings of the Institution with ISBN.',
-      'Each presentation will be 8–10 minutes, followed by 2–3 minutes of Q&A. All submitted papers will be checked for plagiarism. The similarity index and the AI-generated content together should not exceed 15%.',
-      'Registration will be confirmed only after payment of registration fee.',
-    ];
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-        color: const Color(0xFF1E1B4B).withOpacity(0.4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              initiallyExpanded: true,
-              tilePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              childrenPadding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF7C4DFF).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.rule_rounded, color: Color(0xFF7C4DFF)),
-              ),
-              title: const Text(
-                'Guidelines for Paper Submission',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              iconColor: Colors.white70,
-              collapsedIconColor: Colors.white70,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: guidelines.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final guideline = entry.value;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 18),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            margin: const EdgeInsets.only(right: 16, top: 2),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF7C4DFF).withOpacity(0.2),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${index + 1}',
-                                style: const TextStyle(
-                                  color: Color(0xFF7C4DFF),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              guideline,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 15,
-                                height: 1.6,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Helper class to manage co-author form controllers

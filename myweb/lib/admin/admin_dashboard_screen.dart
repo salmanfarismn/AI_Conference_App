@@ -105,6 +105,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildFilters() {
+    final isMobile = MediaQuery.of(context).size.width <= 640;
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Card(
@@ -130,51 +131,86 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  // Status filter
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _statusFilter,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('All Status')),
-                        DropdownMenuItem(value: 'submitted', child: Text('Submitted')),
-                        DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                        DropdownMenuItem(value: 'under_review', child: Text('Under Review')),
-                        DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                        DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
-                        DropdownMenuItem(value: 'revision_requested', child: Text('Revision Requested')),
+              const SizedBox(height: 12),
+              isMobile
+                  ? Column(
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: _statusFilter,
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'all', child: Text('All Status')),
+                            DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                            DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
+                            DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                          ],
+                          onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: _typeFilter,
+                          decoration: const InputDecoration(
+                            labelText: 'Type',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'all', child: Text('All Types')),
+                            DropdownMenuItem(value: 'abstract', child: Text('Abstract')),
+                            DropdownMenuItem(value: 'fullpaper', child: Text('Full Paper')),
+                          ],
+                          onChanged: (v) => setState(() => _typeFilter = v ?? 'all'),
+                        ),
                       ],
-                      onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Type filter
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _typeFilter,
-                      decoration: const InputDecoration(
-                        labelText: 'Type',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('All Types')),
-                        DropdownMenuItem(value: 'abstract', child: Text('Abstract')),
-                        DropdownMenuItem(value: 'fullpaper', child: Text('Full Paper')),
+                    )
+                  : Row(
+                      children: [
+                        // Status filter
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _statusFilter,
+                            decoration: const InputDecoration(
+                              labelText: 'Status',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'all', child: Text('All Status')),
+                              DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                              DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
+                              DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                            ],
+                            onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Type filter
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _typeFilter,
+                            decoration: const InputDecoration(
+                              labelText: 'Type',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'all', child: Text('All Types')),
+                              DropdownMenuItem(value: 'abstract', child: Text('Abstract')),
+                              DropdownMenuItem(value: 'fullpaper', child: Text('Full Paper')),
+                            ],
+                            onChanged: (v) => setState(() => _typeFilter = v ?? 'all'),
+                          ),
+                        ),
                       ],
-                      onChanged: (v) => setState(() => _typeFilter = v ?? 'all'),
                     ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -280,8 +316,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  // Helper to map legacy statuses to valid options
+  String _mapToValidStatus(String status) {
+    const validStatuses = ['accepted', 'accepted_with_revision', 'rejected'];
+    if (validStatuses.contains(status)) {
+      return status;
+    }
+    // Map legacy statuses to a default valid status
+    return 'accepted'; // Default for submissions that haven't been reviewed with new statuses
+  }
+
   Future<void> _showReviewDialog(Submission submission) async {
-    String selectedStatus = submission.status;
+    String selectedStatus = _mapToValidStatus(submission.status);
     final commentsController = TextEditingController(text: submission.reviewComments ?? '');
 
     await showDialog(
@@ -345,12 +391,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'submitted', child: Text('Submitted')),
-                    DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                    DropdownMenuItem(value: 'under_review', child: Text('Under Review')),
                     DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                    DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
                     DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
-                    DropdownMenuItem(value: 'revision_requested', child: Text('Revision Requested')),
                   ],
                   onChanged: (v) => setDialogState(() => selectedStatus = v ?? 'pending'),
                 ),
@@ -385,16 +428,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     reviewComments: commentsController.text.trim(),
                   );
                   if (!mounted) return;
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  // Close dialog first, then show success snackbar using the parent context
+                  Navigator.of(context).pop();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
                     const SnackBar(
                       content: Text('Review saved successfully'),
                       backgroundColor: Colors.green,
                     ),
                   );
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
+                  if (!mounted) return;
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               },
@@ -420,6 +470,7 @@ class _SubmissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width <= 640;
     return Card(
       elevation: 3,
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -530,85 +581,163 @@ class _SubmissionCard extends StatelessWidget {
             const SizedBox(height: 10),
             
             // Action buttons
-            Row(
-              children: [
-                // Review button
-                FilledButton.icon(
-                  onPressed: onReview,
-                  icon: const Icon(Icons.rate_review, size: 18),
-                  label: const Text('Review'),
-                ),
-                const Spacer(),
+            isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: onReview,
+                        icon: const Icon(Icons.rate_review, size: 18),
+                        label: const Text('Review'),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
+                            IconButton(
+                              tooltip: 'Download PDF',
+                              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                              onPressed: () async {
+                                await launchUrlString(submission.pdfUrl!,
+                                    webOnlyWindowName: '_blank');
+                              },
+                            ),
+                          if (submission.extractedText != null &&
+                              submission.extractedText!.isNotEmpty) ...[
+                            IconButton(
+                              tooltip: 'View Full Text',
+                              icon: const Icon(Icons.article_outlined),
+                              onPressed: () async {
+                                final encoded = Uri.dataFromString(
+                                  submission.extractedText!,
+                                  mimeType: 'text/plain',
+                                  encoding: utf8,
+                                ).toString();
+                                await launchUrlString(encoded,
+                                    webOnlyWindowName: '_blank');
+                              },
+                            ),
+                            IconButton(
+                              tooltip: 'Export as PDF',
+                              icon: const Icon(Icons.download),
+                              onPressed: () async {
+                                final pdf = pw.Document();
+                                pdf.addPage(
+                                  pw.Page(
+                                    build: (context) => pw.Column(
+                                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                      children: [
+                                        pw.Text(
+                                            'Reference: ${submission.referenceNumber}',
+                                            style: pw.TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: pw.FontWeight.bold)),
+                                        pw.Text('Title: ${submission.title}',
+                                            style: pw.TextStyle(fontSize: 12)),
+                                        pw.Text('Authors: ${submission.authorsDisplay}',
+                                            style: pw.TextStyle(fontSize: 12)),
+                                        pw.SizedBox(height: 10),
+                                        pw.Text(submission.extractedText!,
+                                            style: pw.TextStyle(fontSize: 11)),
+                                      ],
+                                    ),
+                                  ),
+                                );
 
-                // Download PDF
-                if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
-                  IconButton(
-                    tooltip: 'Download PDF',
-                    icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                    onPressed: () async {
-                      await launchUrlString(submission.pdfUrl!,
-                          webOnlyWindowName: '_blank');
-                    },
-                  ),
+                                final bytes = await pdf.save();
+                                await FileSaver.instance.saveFile(
+                                  '${submission.referenceNumber}.pdf',
+                                  Uint8List.fromList(bytes),
+                                  "pdf",
+                                  mimeType: MimeType.PDF,
+                                );
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      // Review button
+                      FilledButton.icon(
+                        onPressed: onReview,
+                        icon: const Icon(Icons.rate_review, size: 18),
+                        label: const Text('Review'),
+                      ),
+                      const Spacer(),
 
-                // View Full Text
-                if (submission.extractedText != null &&
-                    submission.extractedText!.isNotEmpty)
-                  IconButton(
-                    tooltip: 'View Full Text',
-                    icon: const Icon(Icons.article_outlined),
-                    onPressed: () async {
-                      final encoded = Uri.dataFromString(
-                        submission.extractedText!,
-                        mimeType: 'text/plain',
-                        encoding: utf8,
-                      ).toString();
-                      await launchUrlString(encoded,
-                          webOnlyWindowName: '_blank');
-                    },
-                  ),
-
-                // Download as PDF
-                if (submission.extractedText != null &&
-                    submission.extractedText!.isNotEmpty)
-                  IconButton(
-                    tooltip: 'Export as PDF',
-                    icon: const Icon(Icons.download),
-                    onPressed: () async {
-                      final pdf = pw.Document();
-                      pdf.addPage(
-                        pw.Page(
-                          build: (context) => pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Text(
-                                  'Reference: ${submission.referenceNumber}',
-                                  style: pw.TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: pw.FontWeight.bold)),
-                              pw.Text('Title: ${submission.title}',
-                                  style: pw.TextStyle(fontSize: 12)),
-                              pw.Text('Authors: ${submission.authorsDisplay}',
-                                  style: pw.TextStyle(fontSize: 12)),
-                              pw.SizedBox(height: 10),
-                              pw.Text(submission.extractedText!,
-                                  style: pw.TextStyle(fontSize: 11)),
-                            ],
-                          ),
+                      // Download PDF
+                      if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
+                        IconButton(
+                          tooltip: 'Download PDF',
+                          icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                          onPressed: () async {
+                            await launchUrlString(submission.pdfUrl!,
+                                webOnlyWindowName: '_blank');
+                          },
                         ),
-                      );
 
-                      final bytes = await pdf.save();
-                      await FileSaver.instance.saveFile(
-                        '${submission.referenceNumber}.pdf',
-                        Uint8List.fromList(bytes),
-                        "pdf",
-                        mimeType: MimeType.PDF,
-                      );
-                    },
+                      // View Full Text
+                      if (submission.extractedText != null &&
+                          submission.extractedText!.isNotEmpty)
+                        IconButton(
+                          tooltip: 'View Full Text',
+                          icon: const Icon(Icons.article_outlined),
+                          onPressed: () async {
+                            final encoded = Uri.dataFromString(
+                              submission.extractedText!,
+                              mimeType: 'text/plain',
+                              encoding: utf8,
+                            ).toString();
+                            await launchUrlString(encoded,
+                                webOnlyWindowName: '_blank');
+                          },
+                        ),
+
+                      // Download as PDF
+                      if (submission.extractedText != null &&
+                          submission.extractedText!.isNotEmpty)
+                        IconButton(
+                          tooltip: 'Export as PDF',
+                          icon: const Icon(Icons.download),
+                          onPressed: () async {
+                            final pdf = pw.Document();
+                            pdf.addPage(
+                              pw.Page(
+                                build: (context) => pw.Column(
+                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                  children: [
+                                    pw.Text(
+                                        'Reference: ${submission.referenceNumber}',
+                                        style: pw.TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: pw.FontWeight.bold)),
+                                    pw.Text('Title: ${submission.title}',
+                                        style: pw.TextStyle(fontSize: 12)),
+                                    pw.Text('Authors: ${submission.authorsDisplay}',
+                                        style: pw.TextStyle(fontSize: 12)),
+                                    pw.SizedBox(height: 10),
+                                    pw.Text(submission.extractedText!,
+                                        style: pw.TextStyle(fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                            );
+
+                            final bytes = await pdf.save();
+                            await FileSaver.instance.saveFile(
+                              '${submission.referenceNumber}.pdf',
+                              Uint8List.fromList(bytes),
+                              "pdf",
+                              mimeType: MimeType.PDF,
+                            );
+                          },
+                        ),
+                    ],
                   ),
-              ],
-            ),
           ],
         ),
       ),
@@ -617,10 +746,12 @@ class _SubmissionCard extends StatelessWidget {
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'under_review':
-        return 'UNDER REVIEW';
-      case 'revision_requested':
-        return 'REVISION REQUESTED';
+      case 'accepted':
+        return 'ACCEPTED';
+      case 'accepted_with_revision':
+        return 'ACCEPTED WITH REVISION';
+      case 'rejected':
+        return 'REJECTED';
       default:
         return status.toUpperCase();
     }
@@ -630,16 +761,12 @@ class _SubmissionCard extends StatelessWidget {
     switch (status) {
       case 'accepted':
         return Colors.green;
+      case 'accepted_with_revision':
+        return Colors.orange;
       case 'rejected':
         return Colors.red;
-      case 'under_review':
-        return Colors.blue;
-      case 'revision_requested':
-        return Colors.orange;
-      case 'submitted':
-        return Colors.teal;
       default:
-        return Colors.orange;
+        return Colors.grey;
     }
   }
 }

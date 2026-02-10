@@ -101,9 +101,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 TextFormField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
@@ -225,7 +228,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                   child: const Text('Already have an account? Login'),
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),

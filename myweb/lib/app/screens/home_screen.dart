@@ -79,9 +79,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 child: ScrollConfiguration(
                   behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
                   child: Center(
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.5,
-                      child: FadeTransition(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 700),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: FadeTransition(
                         opacity: _animationController,
                         child: StreamBuilder(
                           stream: FirestoreService.appSettingsStream(),
@@ -161,6 +163,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           },
                         ),
                       ),
+                      ),
                     ),
                   ),
                 ),
@@ -173,6 +176,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildWelcome() {
+    final isMobile = MediaQuery.of(context).size.width <= 640;
+    
     return FutureBuilder(
       future: AuthService.getCurrentUserProfile(),
       builder: (context, snapshot) {
@@ -202,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     top: -20,
                     child: Icon(
                       Icons.rocket_launch_rounded,
-                      size: 180,
+                      size: isMobile ? 120 : 180,
                       color: const Color(0xFF7C4DFF).withOpacity(0.05),
                     ),
                   ),
@@ -238,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         // Text Content
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.all(32),
+                            padding: EdgeInsets.all(isMobile ? 20 : 32),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -254,8 +259,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 const SizedBox(height: 8),
                                 Text(
                                   name,
-                                  style: const TextStyle(
-                                    fontSize: 32,
+                                  style: TextStyle(
+                                    fontSize: isMobile ? 24 : 32,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                     height: 1.2,
@@ -274,11 +279,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     children: [
                                       const Icon(Icons.info_outline_rounded, size: 14, color: Colors.white70),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        'Submit your abstract or full paper below.',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.white.withOpacity(0.8),
+                                      Flexible(
+                                        child: Text(
+                                          'Submit your abstract or full paper below.',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.white.withOpacity(0.8),
+                                          ),
                                         ),
                                       ),
                                     ],

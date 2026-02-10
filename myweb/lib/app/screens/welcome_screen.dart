@@ -60,11 +60,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      minimumSize: const Size(double.infinity, 48),
                     ),
                     child: const Text('Register'),
                   ),
                   const SizedBox(height: 12),
                   TextButton(
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
                     onPressed: _loading
                         ? null
                         : () {

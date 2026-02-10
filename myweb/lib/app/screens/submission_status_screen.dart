@@ -92,10 +92,12 @@ class _SubmissionStatusScreenState extends State<SubmissionStatusScreen> with Si
               child: ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
                 child: Center(
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.5,
-                    child: FadeTransition(
-                      opacity: _animationController,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 700),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: FadeTransition(
+                        opacity: _animationController,
                       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         stream: FirestoreService.userSubmissionsStream(uid),
                         builder: (context, snapshot) {
@@ -155,6 +157,7 @@ class _SubmissionStatusScreenState extends State<SubmissionStatusScreen> with Si
                         },
                       ),
                     ),
+                  ),
                   ),
                 ),
               ),

@@ -104,6 +104,30 @@ class FirestoreService {
     return _submissions.where('uid', isEqualTo: uid).orderBy('createdAt', descending: true).snapshots();
   }
 
+  /// Check if user has an accepted abstract submission.
+  /// Returns true if user has at least one abstract with status 'accepted'.
+  static Future<bool> hasAcceptedAbstract(String uid) async {
+    final snap = await _submissions
+        .where('uid', isEqualTo: uid)
+        .where('submissionType', isEqualTo: 'abstract')
+        .where('status', isEqualTo: 'accepted')
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
+  }
+
+  /// Get the user's accepted abstract submission (if any).
+  static Future<Submission?> getAcceptedAbstract(String uid) async {
+    final snap = await _submissions
+        .where('uid', isEqualTo: uid)
+        .where('submissionType', isEqualTo: 'abstract')
+        .where('status', isEqualTo: 'accepted')
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return Submission.fromDoc(snap.docs.first.id, snap.docs.first.data());
+  }
+
   // ——— App settings ———
   static Stream<DocumentSnapshot<Map<String, dynamic>>> appSettingsStream() {
     return _appSettings.snapshots();

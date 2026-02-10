@@ -16,6 +16,9 @@ class GlassNavbar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check for mobile width
+    final isMobile = MediaQuery.of(context).size.width <= 640;
+
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16), // Increased blur
@@ -29,7 +32,10 @@ class GlassNavbar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 16 : 24, 
+            vertical: 8
+          ),
           child: SafeArea(
             bottom: false,
             child: Row(
@@ -42,20 +48,22 @@ class GlassNavbar extends StatelessWidget implements PreferredSizeWidget {
                     // Main Logo
                     SvgPicture.asset(
                       'assets/images/uccicon26.svg',
-                      height: 60,
+                      height: isMobile ? 40 : 60,
                       fit: BoxFit.contain,
                     ),
-                    const SizedBox(width: 16),
-                    // Title
-                    const Text(
-                      'UCC ICON 2026',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.0,
+                    if (!isMobile) ...[
+                      const SizedBox(width: 16),
+                      // Title
+                      const Text(
+                        'UCC ICON 2026',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1.0,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
 
@@ -63,39 +71,44 @@ class GlassNavbar extends StatelessWidget implements PreferredSizeWidget {
                  Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                     // TCS Logo (Partner) - White
-                    SvgPicture.asset(
-                      'assets/images/TCS-logo-white.svg',
-                      height: 95, 
-                      fit: BoxFit.contain,
-                       colorFilter: const ColorFilter.mode(
-                        Colors.white, 
-                        BlendMode.srcIn,
+                     // Desktop only items
+                     if (!isMobile) ...[
+                       // TCS Logo (Partner) - White
+                      SvgPicture.asset(
+                        'assets/images/TCS-logo-white.svg',
+                        height: 95, 
+                        fit: BoxFit.contain,
+                         colorFilter: const ColorFilter.mode(
+                          Colors.white, 
+                          BlendMode.srcIn,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 24),
+                      const SizedBox(width: 24),
 
-                     // Motto Emblem (College/Institution)
-                    Image.asset(
-                      'assets/images/motto-emblem.png',
-                      height: 40,
-                       fit: BoxFit.contain,
-                    ),
-                    const SizedBox(width: 24),
-                    
-                    // Vertical Separator for Logout
-                    Container(
-                      height: 24,
-                      width: 1,
-                      color: Colors.white.withOpacity(0.1),
-                    ),
-                    const SizedBox(width: 16),
+                       // Motto Emblem (College/Institution)
+                      Image.asset(
+                        'assets/images/motto-emblem.png',
+                        height: 40,
+                         fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 24),
+                      
+                      // Vertical Separator for Logout
+                      Container(
+                        height: 24,
+                        width: 1,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                      const SizedBox(width: 16),
+                     ],
 
                      // Logout
                     IconButton(
                       icon: const Icon(Icons.logout_rounded, color: Colors.white70),
                       onPressed: onLogout,
                       tooltip: 'Logout',
+                      // Larger target on mobile
+                      padding: isMobile ? const EdgeInsets.all(12) : const EdgeInsets.all(8),
                     ),
                   ],
                 ),

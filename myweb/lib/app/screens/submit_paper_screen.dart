@@ -241,10 +241,11 @@ class _SubmitPaperScreenState extends State<SubmitPaperScreen> with SingleTicker
               child: ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
                 child: Center(
-                  child: SizedBox(
-                    // Taking half of the horizontal space
-                    width: MediaQuery.of(context).size.width * 0.5,
-                    child: SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 700),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: FadeTransition(
@@ -341,6 +342,7 @@ class _SubmitPaperScreenState extends State<SubmitPaperScreen> with SingleTicker
                         ),
                       ),
                     ),
+                  ),
                   ),
                 ),
               ),
