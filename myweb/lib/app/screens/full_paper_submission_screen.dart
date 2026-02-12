@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../models/author.dart';
+import '../../models/submission.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/cloudinary_service.dart';
@@ -35,6 +36,7 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
   bool _checkingEligibility = true;
   bool _isEligible = false;
   String? _acceptedAbstractRef;
+  Submission? _acceptedAbstract;
   late AnimationController _animationController;
 
   @override
@@ -59,11 +61,18 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
 
     try {
       final acceptedAbstract = await FirestoreService.getAcceptedAbstract(uid);
+      
       if (!mounted) return;
+
+      if (acceptedAbstract != null) {
+         _prefillForm(acceptedAbstract);
+      }
+
       setState(() {
         _checkingEligibility = false;
         _isEligible = acceptedAbstract != null;
         _acceptedAbstractRef = acceptedAbstract?.referenceNumber;
+        _acceptedAbstract = acceptedAbstract;
       });
     } catch (e) {
       if (!mounted) return;
@@ -71,6 +80,31 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
         _checkingEligibility = false;
         _isEligible = false;
       });
+    }
+  }
+
+  void _prefillForm(Submission abstract) {
+    _titleController.text = abstract.title;
+
+    final mainAuthor = abstract.mainAuthor;
+    if (mainAuthor != null) {
+      _mainAuthorNameController.text = mainAuthor.name;
+      _mainAuthorAffiliationController.text = mainAuthor.affiliation;
+      _mainAuthorEmailController.text = mainAuthor.email ?? '';
+      _mainAuthorPhoneController.text = mainAuthor.phone ?? '';
+    } else if (abstract.author != null) {
+        // Fallback for legacy single string author
+        _mainAuthorNameController.text = abstract.author!;
+    }
+    
+    _coAuthors.clear();
+    for (final coAuthor in abstract.coAuthors) {
+        final fields = _CoAuthorFields();
+        fields.nameController.text = coAuthor.name;
+        fields.affiliationController.text = coAuthor.affiliation;
+        if (coAuthor.email != null) fields.emailController.text = coAuthor.email!;
+        if (coAuthor.phone != null) fields.phoneController.text = coAuthor.phone!;
+        _coAuthors.add(fields);
     }
   }
 
@@ -187,6 +221,13 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
       return;
     }
 
+    if (_acceptedAbstract == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text('Error: Accepted abstract not found.')),
+        );
+        return;
+    }
+
     final Uint8List? bytes = _pickedFile!.bytes;
     if (bytes == null || bytes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,8 +239,8 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
     setState(() => _uploading = true);
 
     try {
-      // Get reference number first
-      final referenceNumber = await FirestoreService.getNextReferenceNumber();
+      // Use existing reference number from the accepted abstract
+      final referenceNumber = _acceptedAbstract!.referenceNumber;
 
       // Upload PDF to Cloudinary
       final pdfUrl = await CloudinaryService.uploadFullPaperPdf(
