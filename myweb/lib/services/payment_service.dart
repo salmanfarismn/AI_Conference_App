@@ -7,8 +7,16 @@ import 'package:http/http.dart' as http;
 /// operations happen on the backend.
 class PaymentService {
   // ─────────── Configuration ───────────
-  // Toggle this to your deployed backend URL in production.
-  static const String _baseUrl = 'http://localhost:3001/api';
+  // Auto-detect: localhost → local backend, otherwise → deployed Render backend
+  static const String _prodBackendUrl = 'https://ai-conference-payment-backend.onrender.com/api';
+  static const String _devBackendUrl = 'http://localhost:3001/api';
+
+  static String get _baseUrl {
+    final host = html.window.location.hostname ?? '';
+    return (host == 'localhost' || host == '127.0.0.1')
+        ? _devBackendUrl
+        : _prodBackendUrl;
+  }
 
   /// Initiate payment for a user.
   /// Returns a map with { success, paymentUrl, accessKey, txnid, amount, role }

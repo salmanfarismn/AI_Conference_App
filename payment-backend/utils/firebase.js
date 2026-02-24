@@ -15,22 +15,31 @@ function initializeFirebase() {
         return db;
     }
 
-    // Resolve to absolute path (env var is relative to CWD, not this file)
-    const rawPath =
-        process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
-        path.join(__dirname, "..", "serviceAccountKey.json");
-    const serviceAccountPath = path.resolve(rawPath);
-
-    if (fs.existsSync(serviceAccountPath)) {
-        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+    // Priority 1: Service account as JSON string (for cloud deployments like Render)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
-    } else {
-        // Attempt default credentials (Cloud Run, GCF, etc.)
-        admin.initializeApp({
-            credential: admin.credential.applicationDefault(),
-        });
+    }
+    // Priority 2: Service account file path (for local development)
+    else {
+        const rawPath =
+            process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
+            path.join(__dirname, "..", "serviceAccountKey.json");
+        const serviceAccountPath = path.resolve(rawPath);
+
+        if (fs.existsSync(serviceAccountPath)) {
+            const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+            });
+        } else {
+            // Priority 3: Default credentials (Cloud Run, GCF, etc.)
+            admin.initializeApp({
+                credential: admin.credential.applicationDefault(),
+            });
+        }
     }
 
     db = admin.firestore();

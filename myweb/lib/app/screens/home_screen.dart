@@ -470,8 +470,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 onTap: () {
                   final uid = AuthService.currentUser?.uid;
                   if (uid != null) {
+                    final host = html.window.location.hostname ?? '';
+                    final backendBase = (host == 'localhost' || host == '127.0.0.1')
+                        ? 'http://localhost:3001/api'
+                        : 'https://ai-conference-payment-backend.onrender.com/api';
                     html.window.open(
-                      'http://localhost:3001/api/receipt/$uid',
+                      '$backendBase/receipt/$uid',
                       '_blank',
                     );
                   }
@@ -487,8 +491,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 onTap: () {
                   final uid = AuthService.currentUser?.uid;
                   if (uid != null) {
+                    final host = html.window.location.hostname ?? '';
+                    final backendBase = (host == 'localhost' || host == '127.0.0.1')
+                        ? 'http://localhost:3001/api'
+                        : 'https://ai-conference-payment-backend.onrender.com/api';
                     html.window.open(
-                      'http://localhost:3001/api/receipt/download/$uid',
+                      '$backendBase/receipt/download/$uid',
                       '_blank',
                     );
                   }
