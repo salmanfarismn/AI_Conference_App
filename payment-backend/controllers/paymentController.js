@@ -96,8 +96,8 @@ async function createPayment(req, res) {
         // Filter for specific type and status in code
         const approvedDocs = submissionsSnap.docs.filter((doc) => {
             const d = doc.data();
-            const type = (d.submissionType || "").toLowerCase().trim();
-            const status = (d.status || "").toLowerCase().trim();
+            const type = String(d.submissionType || "").toLowerCase().trim();
+            const status = String(d.status || "").toLowerCase().trim();
 
             return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision");
         });
@@ -373,8 +373,8 @@ async function getPaymentStatus(req, res) {
 
         const approvedDocs = submissionsSnap.docs.filter((doc) => {
             const d = doc.data();
-            const type = (d.submissionType || "").toLowerCase().trim();
-            const status = (d.status || "").toLowerCase().trim();
+            const type = String(d.submissionType || "").toLowerCase().trim();
+            const status = String(d.status || "").toLowerCase().trim();
 
             return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision");
         });
@@ -402,6 +402,8 @@ async function getPaymentStatus(req, res) {
         return res.status(500).json({
             success: false,
             error: "Internal server error.",
+            message: error.message,
+            stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
         });
     }
 }
