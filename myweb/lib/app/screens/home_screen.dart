@@ -1,13 +1,16 @@
 import 'dart:ui';
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
+import '../../services/payment_service.dart';
 import '../../models/app_settings.dart';
 import '../widgets/parallax_background.dart';
 import 'welcome_screen.dart';
 import 'submission_status_screen.dart';
 import 'submit_paper_screen.dart';
 import 'full_paper_submission_screen.dart';
+import 'payment_confirmation_screen.dart';
 import '../widgets/glass_navbar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -132,6 +135,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   accentColor: primaryIndigo,
                                 ),
                                 
+                                // ─── Payment Section ───
+                                _buildPaymentSection(accentViolet),
+
                                 const SizedBox(height: 32),
                                 Text(
                                   'MY ACCOUNT',
@@ -390,6 +396,123 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ),
       ),
+    );
+  }
+
+  /// Builds the payment section that appears between Full Paper Submission
+  /// and My Account sections. Only visible when relevant.
+  Widget _buildPaymentSection(Color accentViolet) {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: PaymentService.getPaymentStatus(uid),
+      builder: (context, snapshot) {
+        // Debug logging
+        debugPrint('[PAYMENT] Connection state: ${snapshot.connectionState}');
+        debugPrint('[PAYMENT] Has data: ${snapshot.hasData}');
+        debugPrint('[PAYMENT] Has error: ${snapshot.hasError}');
+        if (snapshot.hasError) {
+          debugPrint('[PAYMENT] Error: ${snapshot.error}');
+        }
+        if (snapshot.hasData) {
+          debugPrint('[PAYMENT] Data: ${snapshot.data}');
+        }
+
+        // While loading, show nothing to avoid layout jumps
+        if (!snapshot.hasData) return const SizedBox.shrink();
+
+        final data = snapshot.data!;
+        if (data['success'] != true) {
+          debugPrint('[PAYMENT] API returned success=false: ${data['error']}');
+          return const SizedBox.shrink();
+        }
+
+        final hasApprovedPaper = data['hasApprovedPaper'] == true;
+        final paymentStatus = data['paymentStatus'] as String?;
+        debugPrint('[PAYMENT] hasApprovedPaper=$hasApprovedPaper, paymentStatus=$paymentStatus');
+
+        // Only show section if user has an approved full paper
+        if (!hasApprovedPaper) return const SizedBox.shrink();
+
+        final isPaid = paymentStatus == 'paid';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 32),
+            Text(
+              'PAYMENT',
+              style: TextStyle(
+                color: accentViolet,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (isPaid) ...[
+              _buildGlassActionCard(
+                title: 'Payment Completed',
+                subtitle: 'Conference fee paid successfully. TXN: ${data['paymentTxnId'] ?? 'N/A'}',
+                icon: Icons.check_circle_rounded,
+                open: false,
+                onTap: () {},
+                accentColor: Colors.green,
+              ),
+              const SizedBox(height: 12),
+              _buildGlassActionCard(
+                title: 'View Receipt',
+                subtitle: 'Preview your payment receipt in browser.',
+                icon: Icons.receipt_long_rounded,
+                open: true,
+                onTap: () {
+                  final uid = AuthService.currentUser?.uid;
+                  if (uid != null) {
+                    html.window.open(
+                      'http://localhost:3001/api/receipt/$uid',
+                      '_blank',
+                    );
+                  }
+                },
+                accentColor: const Color(0xFF7C4DFF),
+              ),
+              const SizedBox(height: 12),
+              _buildGlassActionCard(
+                title: 'Download Receipt',
+                subtitle: 'Download receipt as PDF file.',
+                icon: Icons.download_rounded,
+                open: true,
+                onTap: () {
+                  final uid = AuthService.currentUser?.uid;
+                  if (uid != null) {
+                    html.window.open(
+                      'http://localhost:3001/api/receipt/download/$uid',
+                      '_blank',
+                    );
+                  }
+                },
+                accentColor: Colors.teal,
+              ),
+            ] else
+              _buildGlassActionCard(
+                title: 'Pay Conference Fee',
+                subtitle: 'Your full paper is approved. Complete payment to confirm registration.',
+                icon: Icons.payment_rounded,
+                open: true,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PaymentConfirmationScreen(),
+                    ),
+                  );
+                },
+                accentColor: Colors.amber,
+              ),
+          ],
+        );
+      },
     );
   }
 

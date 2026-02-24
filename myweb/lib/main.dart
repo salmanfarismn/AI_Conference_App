@@ -5,6 +5,7 @@ import 'admin/admin_dashboard_screen.dart';
 import 'admin/admin_login_screen.dart';
 import 'app/screens/welcome_screen.dart';
 import 'app/screens/home_screen.dart';
+import 'app/screens/payment_result_screen.dart';
 import 'services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
@@ -32,9 +33,35 @@ class ConferenceApp extends StatelessWidget {
       // ✅ Student app is DEFAULT (web + mobile)
       home: const AuthWrapper(),
 
-      // ✅ Admin only via explicit route
-     routes: {
-        '/admin': (_) => const AdminAuthWrapper(),
+      // ✅ Routes
+      onGenerateRoute: (settings) {
+        final uri = Uri.parse(settings.name ?? '');
+
+        // Payment result route (Easebuzz callback redirect)
+        if (uri.path == '/payment-result') {
+          final status = uri.queryParameters['status'] ?? 'failed';
+          final txnid = uri.queryParameters['txnid'];
+          final amount = uri.queryParameters['amount'];
+          final reason = uri.queryParameters['reason'];
+
+          return MaterialPageRoute(
+            builder: (_) => PaymentResultScreen(
+              status: status,
+              txnid: txnid,
+              amount: amount,
+              reason: reason,
+            ),
+          );
+        }
+
+        // Admin route
+        if (uri.path == '/admin') {
+          return MaterialPageRoute(
+            builder: (_) => const AdminAuthWrapper(),
+          );
+        }
+
+        return null;
       },
     );
   }
