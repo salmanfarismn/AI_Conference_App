@@ -78,20 +78,32 @@ async function createPayment(req, res) {
         }
         const userData = userDoc.data();
 
-        // 2. Check if user has an approved full paper (accepted OR accepted_with_revision)
+        // 2. Check if user has an approved full paper
+        // Simplified query to avoid the need for composite indices
         const submissionsSnap = await db
             .collection("submissions")
             .where("uid", "==", uid)
-            .where("submissionType", "==", "fullpaper")
             .get();
 
-        // Filter for accepted statuses in code (Firestore doesn't support OR on same field in compound queries)
+        if (submissionsSnap.empty) {
+            console.log(`[PAYMENT] No submissions found for user ${uid}`);
+            return res.status(403).json({
+                success: false,
+                error: "No submissions found for this account.",
+            });
+        }
+
+        // Filter for specific type and status in code
         const approvedDocs = submissionsSnap.docs.filter((doc) => {
-            const s = doc.data().status;
-            return s === "accepted" || s === "accepted_with_revision";
+            const d = doc.data();
+            const type = (d.submissionType || "").toLowerCase().trim();
+            const status = (d.status || "").toLowerCase().trim();
+
+            return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision");
         });
 
         if (approvedDocs.length === 0) {
+            console.log(`[PAYMENT] User ${uid} has ${submissionsSnap.size} submissions but none are approved full papers.`);
             return res.status(403).json({
                 success: false,
                 error: "Full paper must be approved before payment.",
@@ -352,16 +364,19 @@ async function getPaymentStatus(req, res) {
 
         const db = getDb();
 
-        // Find the user's approved full paper (accepted OR accepted_with_revision)
+        // Find the user's approved full paper
+        // Simplified query to avoid the need for composite indices
         const submissionsSnap = await db
             .collection("submissions")
             .where("uid", "==", uid)
-            .where("submissionType", "==", "fullpaper")
             .get();
 
         const approvedDocs = submissionsSnap.docs.filter((doc) => {
-            const s = doc.data().status;
-            return s === "accepted" || s === "accepted_with_revision";
+            const d = doc.data();
+            const type = (d.submissionType || "").toLowerCase().trim();
+            const status = (d.status || "").toLowerCase().trim();
+
+            return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision");
         });
 
         if (approvedDocs.length === 0) {
