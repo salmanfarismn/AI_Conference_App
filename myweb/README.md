@@ -1,70 +1,75 @@
-# Conference Paper Submission System
+# UCCICON26 — Conference Paper Submission System
 
-Flutter project with **Web Admin Panel** and **Mobile App** (Android / iOS) for an academic conference paper submission system, using Firebase (Auth, Firestore, Storage).
-
----
-
-## Project structure
-
-| Platform | Entry | Purpose |
-|----------|--------|--------|
-| **Web** | Admin panel | Login (admin role only), view submissions, Accept/Reject, toggle abstract/full-paper submission, logout |
-| **Android / iOS** | User app | **Submit abstract first** (no account), then register to track; login, submit full paper (PDF), view status, real-time feature toggles |
-
-- **Web**: `lib/admin/` — login and dashboard.
-- **Mobile**: `lib/app/` — auth, home, submit paper, submission status.
-- **Shared**: `lib/models/`, `lib/services/` — Firestore, Auth, Storage, models.
+A Flutter-based academic conference management platform with a **Web Admin Panel** and a **Mobile App** (Android / iOS / Web), powered by Firebase and Cloudinary.
 
 ---
 
-## Firebase setup
+## Table of Contents
 
-1. **Firebase project**  
-   Use an existing project or create one; ensure **Authentication** (Email/Password **and Anonymous**), **Firestore**, and **Storage** are enabled.  
-   **Anonymous** sign-in is used so users can submit an abstract before registering; enable it in Firebase Console → Authentication → Sign-in method → Anonymous.
-
-2. **Admin custom claim**  
-   Only users with custom claim `role == 'admin'` can use the web admin panel. Set this with the Firebase Admin SDK (Node.js example):
-
-   ```js
-   const admin = require('firebase-admin');
-   admin.auth().setCustomUserClaims(uid, { role: 'admin' });
-   ```
-
-   Run this (e.g. from a Cloud Function or script) for each admin user after they register.
-
-3. **Firestore rules & indexes**  
-   Deploy rules and indexes from the project root:
-
-   ```bash
-   firebase deploy --only firestore:rules
-   firebase deploy --only firestore:indexes
-   ```
-
-   Or add Firestore to `firebase.json` and run `firebase deploy --only firestore`.
-
-4. **Initial app settings**  
-   Create document `app_settings/settings` in Firestore with:
-
-   - `abstractSubmissionOpen` (boolean)
-   - `fullPaperSubmissionOpen` (boolean)
-
-   Example: `{ "abstractSubmissionOpen": true, "fullPaperSubmissionOpen": true }`
-
-5. **Reference number counter**  
-   The app uses Firestore document `counters/submission_ref` with field `lastNumber` (number) for sequential reference numbers (UCCICON26-01, 02, …). The first submission will create it; no manual creation required.
+- [Overview](#overview)
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [Features](#features)
+- [Submission Workflow](#submission-workflow)
+- [Firestore Data Model](#firestore-data-model)
+- [Getting Started](#getting-started)
+- [Firebase Setup](#firebase-setup)
+- [Running the App](#running-the-app)
+- [Security](#security)
+- [Dependencies](#dependencies)
 
 ---
 
-## Running the app
+## Overview
 
-- **Web (admin)**  
-  `flutter run -d chrome`  
-  Opens the admin login; only accounts with `role: 'admin'` can access the dashboard.
+| Platform | Entry Point | Purpose |
+|----------|-------------|---------|
+| **Web** | Admin Panel | Review submissions, accept/reject with comments, toggle submission windows |
+| **Mobile / Web** | User App | Submit abstracts & full papers, track status in real time |
 
-- **Mobile (user)**  
-  `flutter run` (with device/emulator) or `flutter run -d <device_id>`  
-  Opens the **welcome screen**: primary action is **Submit Abstract**; then **Register** or **Login**. Submitting an abstract uses anonymous auth; after success the user is prompted to create an account (linking keeps the same submission).
+---
+
+## Project Structure
+
+```
+lib/
+├── admin/                        # Web admin panel
+│   ├── admin_login_screen.dart
+│   └── admin_dashboard_screen.dart
+├── app/                          # User-facing app
+│   ├── screens/
+│   │   ├── welcome_screen.dart
+│   │   ├── login_screen.dart
+│   │   ├── register_screen.dart
+│   │   ├── home_screen.dart
+│   │   ├── submit_paper_screen.dart           # Abstract submission
+│   │   ├── full_paper_submission_screen.dart   # Full paper submission
+│   │   └── submission_status_screen.dart       # My Submissions
+│   ├── widgets/
+│   └── utils/
+├── models/
+│   ├── submission.dart           # Submission model (abstract + full paper)
+│   ├── author.dart               # Author model (main + co-authors)
+│   ├── user_profile.dart
+│   └── app_settings.dart
+├── services/
+│   ├── auth_service.dart         # Firebase Auth (email/password + anonymous)
+│   ├── firestore_service.dart    # Firestore CRUD operations
+│   ├── cloudinary_service.dart   # Cloudinary PDF uploads
+│   └── storage_service.dart      # Firebase Storage (legacy)
+├── firebase_options.dart
+└── main.dart
+```
+
+---
+
+## Tech Stack
+
+- **Framework**: Flutter (Dart) — single codebase for Web, Android, iOS
+- **Auth**: Firebase Authentication (Email/Password + Anonymous sign-in)
+- **Database**: Cloud Firestore (real-time sync)
+- **File Storage**: Cloudinary (full paper PDFs), Firebase Storage (legacy)
+- **UI**: Custom dark theme with glassmorphism, parallax backgrounds, and micro-animations
 
 ---
 
@@ -72,61 +77,184 @@ Flutter project with **Web Admin Panel** and **Mobile App** (Android / iOS) for 
 
 ### Web Admin Panel
 
-- Login with email/password; access only if custom claim `role == 'admin'`.
-- Dashboard: list of submissions with reference number, title, user name, status (pending/accepted/rejected), optional timestamp.
-- Accept / Reject per submission; status updates in Firestore and reflects in the mobile app in real time.
-- Feature toggles from `app_settings/settings`: **Abstract submission**, **Full paper submission**. Changes apply in real time for students.
-- Search/filter submissions by reference or title; filter by status.
-- Logout.
+- **Secure login** – email/password with `role: 'admin'` custom claim enforcement
+- **Submission dashboard** – view all submissions (abstracts & full papers) with real-time updates
+- **Review workflow** – accept, reject, or request revisions with comments
+- **Feature toggles** – enable/disable abstract and full paper submission windows in real time
+- **Search & filter** – by reference number, title, or status
 
-### Mobile App (Android / iOS)
+### Mobile / Web User App
 
-- **Flow: Submit abstract first, then register.** Welcome screen offers **Submit Abstract** (primary), **Register**, and **Login**. Tapping Submit Abstract signs in anonymously (if needed) and opens the abstract submission form. After a successful submit, the user is prompted to **Create account** to track the submission; registering links the anonymous account so the submission stays with their profile.
-- **Auth**: Register (name, email, phone, user type: student/scholar) and login; profile stored in `users` collection. Anonymous users can link to email/password when they register.
-- **Feature control**: Reads `app_settings/settings`; shows/hides abstract and full-paper submission based on toggles. If disabled, shows “Submission is currently closed by the admin.”
-- **Submissions**: PDF only; abstract and full-paper submission types. PDFs stored in Firebase Storage; metadata and extracted text (placeholder) in Firestore.
-- **Reference numbers**: Sequential (UCCICON26-01, 02, …), stored with each submission and shown on the user’s submission status screen.
-- **Status**: User sees all their submissions with reference number, type, status (Pending/Accepted/Rejected), optional timestamp; updates in real time when admin accepts/rejects.
-- **Logout** from the home screen.
-
----
-
-## Firestore data shape
-
-- **users**  
-  `uid`, `name`, `email`, `phone`, `role` (student | scholar).
-
-- **submissions**  
-  `uid`, `referenceNumber`, `title`, `pdfUrl`, `extractedText`, `status` (pending | accepted | rejected), `submissionType` (abstract | fullpaper), `createdAt`.
-
-- **app_settings/settings**  
-  `abstractSubmissionOpen`, `fullPaperSubmissionOpen` (booleans).
-
-- **counters/submission_ref**  
-  `lastNumber` (number) for generating reference numbers.
+- **Abstract submission** – title, author name, `.docx` upload with auto text extraction; works anonymously before registration
+- **Full paper submission** – requires an accepted abstract; pre-fills title and authors from abstract; uploads PDF (max 10 MB) to Cloudinary
+- **Multi-author support** – main author (name, affiliation, email, phone) + up to 5 co-authors
+- **Reference number linking** – full paper shares the same `UCCICON26-XX` reference number as the abstract
+- **My Submissions** – view all submissions with title, authors, type (Abstract / Full Paper), status, and review comments
+- **Real-time status** – submission status and review comments update live via Firestore streams
+- **Account linking** – anonymous users can register after submitting an abstract without losing their submission
 
 ---
 
-## Optional: PDF text extraction & notifications
+## Submission Workflow
 
-- **PDF text extraction**  
-  The app stores `extractedText` in Firestore; the current code uses a placeholder. For production, use a Cloud Function (or other backend) that is triggered on new PDF uploads, extracts text, and updates the submission document.
+```
+┌──────────────────────┐
+│  Submit Abstract     │  Anonymous or logged-in user
+│  (.docx upload)      │  → Creates document: submissionType = 'abstract'
+│  → Ref: UCCICON26-XX │  → Sequential reference number assigned
+└────────┬─────────────┘
+         │
+         ▼
+┌──────────────────────┐
+│  Admin Review        │  Accept / Reject / Revision
+└────────┬─────────────┘
+         │ (accepted)
+         ▼
+┌──────────────────────┐
+│  Submit Full Paper   │  Pre-fills title & authors from abstract
+│  (PDF upload)        │  → Creates NEW document: submissionType = 'fullpaper'
+│  → Same Ref Number   │  → Linked by referenceNumber (abstract untouched)
+└──────────────────────┘
+```
 
-- **Notifications**  
-  For “submission accepted/rejected” alerts, add Firebase Cloud Messaging (FCM) and trigger notifications from a Cloud Function when submission status is updated, or use in-app alerts (already reflected by real-time status in the app).
+**Key rules:**
+- Full paper requires an accepted abstract
+- Full paper creates a **separate** Firestore document (does not modify the abstract)
+- Both documents share the same `referenceNumber` for linkage
+- Title, authors, and co-authors are pre-filled from the abstract but remain editable
 
 ---
 
-## Security summary
+## Firestore Data Model
 
-- **Firestore rules**: Users read/write only their own `users` and `submissions` docs; admin (via custom claim) can read/write all submissions and app_settings. App settings are readable by any authenticated user; only admin can write. Counters are readable/writable by authenticated users for reference-number generation.
-- **Admin panel**: Only users with custom claim `role == 'admin'` can use the web admin flow; others are signed out and shown an error.
+### `submissions` collection
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `uid` | string | User's Firebase UID |
+| `referenceNumber` | string | e.g. `UCCICON26-01` |
+| `title` | string | Paper/abstract title |
+| `author` | string? | Legacy single-author field |
+| `authors` | array | List of `Author` objects (name, affiliation, email?, phone?, isMainAuthor) |
+| `submissionType` | string | `abstract` or `fullpaper` |
+| `status` | string | `pending` · `submitted` · `under_review` · `accepted` · `rejected` · `revision_requested` |
+| `pdfUrl` | string? | Cloudinary URL (full papers) |
+| `docBase64` | string? | Base64-encoded `.docx` (abstracts) |
+| `docName` | string? | Original file name |
+| `extractedText` | string? | Text extracted from `.docx` |
+| `reviewComments` | string? | Admin review feedback |
+| `reviewedBy` | string? | Admin UID who reviewed |
+| `createdAt` | timestamp | Submission timestamp |
+| `updatedAt` | timestamp? | Last update timestamp |
+| `reviewedAt` | timestamp? | Review timestamp |
+
+### `users` collection
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `uid` | string | Firebase UID |
+| `name` | string | Display name |
+| `email` | string | Email address |
+| `phone` | string | Phone number |
+| `role` | string | `student` or `scholar` |
+
+### `app_settings/settings` document
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `abstractSubmissionOpen` | boolean | Controls abstract submission availability |
+| `fullPaperSubmissionOpen` | boolean | Controls full paper submission availability |
+
+### `counters/submission_ref` document
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lastNumber` | number | Auto-incremented counter for reference numbers |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Flutter SDK ≥ 3.0.0
+- Firebase project with Authentication, Firestore, and Storage enabled
+- Cloudinary account (for full paper PDF uploads)
+- FlutterFire CLI (`dart pub global activate flutterfire_cli`)
+
+### Firebase Setup
+
+1. **Configure Firebase**
+   ```bash
+   flutterfire configure
+   ```
+
+2. **Enable authentication methods**
+   - Firebase Console → Authentication → Sign-in method
+   - Enable **Email/Password** and **Anonymous**
+
+3. **Set admin custom claims**
+   ```js
+   const admin = require('firebase-admin');
+   admin.auth().setCustomUserClaims(uid, { role: 'admin' });
+   ```
+
+4. **Deploy Firestore rules & indexes**
+   ```bash
+   firebase deploy --only firestore:rules
+   firebase deploy --only firestore:indexes
+   ```
+
+5. **Initialize app settings**  
+   Create `app_settings/settings` in Firestore:
+   ```json
+   {
+     "abstractSubmissionOpen": true,
+     "fullPaperSubmissionOpen": true
+   }
+   ```
+
+6. **Reference counter** — auto-created on first submission; no manual setup needed.
+
+---
+
+## Running the App
+
+```bash
+# Install dependencies
+flutter pub get
+
+# Web (admin panel)
+flutter run -d chrome
+
+# Android / iOS
+flutter run
+```
+
+---
+
+## Security
+
+- **Firestore rules** enforce user-scoped reads/writes — users can only access their own data
+- **Admin access** requires the `role: 'admin'` custom claim; unauthorized users are signed out
+- **App settings** are readable by authenticated users but writable only by admins
+- **File uploads** are validated client-side (PDF only, 10 MB max)
 
 ---
 
 ## Dependencies
 
-- `firebase_core`, `firebase_auth`, `cloud_firestore`, `firebase_storage`
-- `file_picker` (mobile PDF pick), `intl` (formatting)
-
-Generate platform-specific config with FlutterFire CLI: `flutterfire configure`.
+| Package | Purpose |
+|---------|---------|
+| `firebase_core` | Firebase initialization |
+| `firebase_auth` | Authentication |
+| `cloud_firestore` | Database |
+| `firebase_storage` | Legacy file storage |
+| `cloudinary_public` | Full paper PDF uploads |
+| `file_picker` | File selection |
+| `intl` | Date/time formatting |
+| `url_launcher` | Opening PDF links |
+| `archive` / `xml` | `.docx` text extraction |
+| `flutter_svg` | SVG asset rendering |
+| `pdf` / `file_saver` | PDF generation & download |
+| `http` | HTTP requests |
