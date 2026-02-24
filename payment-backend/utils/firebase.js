@@ -17,6 +17,7 @@ function initializeFirebase() {
 
     // Priority 1: Service account as JSON string (for cloud deployments like Render)
     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        console.log("[FIREBASE] Initializing with FIREBASE_SERVICE_ACCOUNT_JSON env var");
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
@@ -30,12 +31,15 @@ function initializeFirebase() {
         const serviceAccountPath = path.resolve(rawPath);
 
         if (fs.existsSync(serviceAccountPath)) {
+            console.log("[FIREBASE] Initializing with service account file:", serviceAccountPath);
             const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
             });
         } else {
-            // Priority 3: Default credentials (Cloud Run, GCF, etc.)
+            console.warn("[FIREBASE] ⚠️  No FIREBASE_SERVICE_ACCOUNT_JSON env var and no serviceAccountKey.json file found!");
+            console.warn("[FIREBASE] ⚠️  Falling back to applicationDefault() — this will FAIL on Render.");
+            console.warn("[FIREBASE] ⚠️  Please set FIREBASE_SERVICE_ACCOUNT_JSON in Render environment variables.");
             admin.initializeApp({
                 credential: admin.credential.applicationDefault(),
             });
