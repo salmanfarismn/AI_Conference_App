@@ -26,7 +26,8 @@ class FirestoreService {
     return UserProfile.fromMap(uid, doc.data()!);
   }
 
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> userProfileStream(String uid) {
+  static Stream<DocumentSnapshot<Map<String, dynamic>>> userProfileStream(
+      String uid) {
     return _users.doc(uid).snapshots();
   }
 
@@ -36,11 +37,13 @@ class FirestoreService {
   }
 
   static Future<List<Submission>> getSubmissions() async {
-    final snap = await _submissions.orderBy('createdAt', descending: true).get();
+    final snap =
+        await _submissions.orderBy('createdAt', descending: true).get();
     return snap.docs.map((d) => Submission.fromDoc(d.id, d.data())).toList();
   }
 
-  static Future<void> updateSubmissionStatus(String docId, String status) async {
+  static Future<void> updateSubmissionStatus(
+      String docId, String status) async {
     await _submissions.doc(docId).update({'status': status});
   }
 
@@ -59,49 +62,53 @@ class FirestoreService {
   }
 
   static Future<String> addSubmission({
-  required String uid,
-  required String title,
-  required String author,
-  String? pdfUrl,
-  String? extractedText,
-  String? docBase64,
-  String? docName,
-  required String submissionType,
-  String? referenceNumber,
-}) async {
-  final refNumber = referenceNumber ?? await getNextReferenceNumber();
-  final docRef = _submissions.doc();
+    required String uid,
+    required String title,
+    required String author,
+    String? pdfUrl,
+    String? extractedText,
+    String? docBase64,
+    String? docName,
+    required String submissionType,
+    String? referenceNumber,
+  }) async {
+    final refNumber = referenceNumber ?? await getNextReferenceNumber();
+    final docRef = _submissions.doc();
 
-  final data = <String, dynamic>{
-    'uid': uid,
-    'referenceNumber': refNumber,
-    'title': title,
-    'author': author,
-    'extractedText': extractedText ?? '',
-    'status': 'pending',
-    'submissionType': submissionType,
-    'createdAt': FieldValue.serverTimestamp(),
-  };
+    final data = <String, dynamic>{
+      'uid': uid,
+      'referenceNumber': refNumber,
+      'title': title,
+      'author': author,
+      'extractedText': extractedText ?? '',
+      'status': 'pending',
+      'submissionType': submissionType,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
 
-  // If a file URL from storage is provided, keep it for backward compat.
-  if (pdfUrl != null && pdfUrl.isNotEmpty) {
-    data['pdfUrl'] = pdfUrl;
-  }
-
-  // If the caller provided the document as base64, store it directly in the doc.
-  if (docBase64 != null && docBase64.isNotEmpty) {
-    data['docBase64'] = docBase64;
-    if (docName != null && docName.isNotEmpty) {
-      data['docName'] = docName;
+    // If a file URL from storage is provided, keep it for backward compat.
+    if (pdfUrl != null && pdfUrl.isNotEmpty) {
+      data['pdfUrl'] = pdfUrl;
     }
+
+    // If the caller provided the document as base64, store it directly in the doc.
+    if (docBase64 != null && docBase64.isNotEmpty) {
+      data['docBase64'] = docBase64;
+      if (docName != null && docName.isNotEmpty) {
+        data['docName'] = docName;
+      }
+    }
+
+    await docRef.set(data);
+    return docRef.id;
   }
 
-  await docRef.set(data);
-  return docRef.id;
-}
-
-  static Stream<QuerySnapshot<Map<String, dynamic>>> userSubmissionsStream(String uid) {
-    return _submissions.where('uid', isEqualTo: uid).orderBy('createdAt', descending: true).snapshots();
+  static Stream<QuerySnapshot<Map<String, dynamic>>> userSubmissionsStream(
+      String uid) {
+    return _submissions
+        .where('uid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   /// Check if user has an accepted abstract submission.
@@ -139,11 +146,13 @@ class FirestoreService {
   }
 
   static Future<void> setAbstractSubmissionOpen(bool value) async {
-    await _appSettings.set({'abstractSubmissionOpen': value}, SetOptions(merge: true));
+    await _appSettings
+        .set({'abstractSubmissionOpen': value}, SetOptions(merge: true));
   }
 
   static Future<void> setFullPaperSubmissionOpen(bool value) async {
-    await _appSettings.set({'fullPaperSubmissionOpen': value}, SetOptions(merge: true));
+    await _appSettings
+        .set({'fullPaperSubmissionOpen': value}, SetOptions(merge: true));
   }
 
   static Future<void> updateAppSetting(String key, bool value) async {
@@ -151,7 +160,7 @@ class FirestoreService {
   }
 
   // ——— Full Paper Submission ———
-  
+
   /// Add a full paper submission with multiple authors and PDF.
   static Future<String> addFullPaperSubmission({
     required String uid,
@@ -192,7 +201,7 @@ class FirestoreService {
       'reviewedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    
+
     if (reviewComments != null && reviewComments.isNotEmpty) {
       data['reviewComments'] = reviewComments;
     }
@@ -205,5 +214,42 @@ class FirestoreService {
     final doc = await _submissions.doc(docId).get();
     if (!doc.exists || doc.data() == null) return null;
     return Submission.fromDoc(doc.id, doc.data()!);
+  }
+
+  // ——— Payment Verification ———
+
+  /// Submit payment verification details for a user.
+  static Future<void> submitPaymentVerification({
+    required String uid,
+    required String receiptUrl,
+    required String idCardUrl,
+  }) async {
+    await _users.doc(uid).update({
+      'paymentStatus': 'pending',
+      'receiptUrl': receiptUrl,
+      'idCardUrl': idCardUrl,
+      'paymentSubmittedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Update payment status (admin only).
+  static Future<void> updatePaymentStatus({
+    required String uid,
+    required String status,
+    String? rejectionReason,
+  }) async {
+    final data = <String, dynamic>{
+      'paymentStatus': status,
+      'paymentReviewedAt': FieldValue.serverTimestamp(),
+    };
+    if (rejectionReason != null) {
+      data['paymentRejectionReason'] = rejectionReason;
+    }
+    await _users.doc(uid).update(data);
+  }
+
+  /// Stream of users with pending payment verification.
+  static Stream<QuerySnapshot<Map<String, dynamic>>> pendingPaymentsStream() {
+    return _users.where('paymentStatus', isEqualTo: 'pending').snapshots();
   }
 }

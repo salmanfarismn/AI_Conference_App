@@ -16,7 +16,8 @@ class StorageService {
     final name = '${referenceNumber}_$submissionType.pdf'.replaceAll('/', '_');
     final ref = _storage.ref().child('submissions').child(uid).child(name);
     try {
-      final uploadTask = ref.putData(bytes, SettableMetadata(contentType: 'application/pdf'));
+      final uploadTask =
+          ref.putData(bytes, SettableMetadata(contentType: 'application/pdf'));
       final snapshot = await uploadTask;
       if (snapshot.state != TaskState.success) {
         throw FirebaseException(
@@ -26,7 +27,7 @@ class StorageService {
       }
       final url = await ref.getDownloadURL();
       return url;
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (_) {
       rethrow;
     } catch (e) {
       throw FirebaseException(
@@ -47,7 +48,11 @@ class StorageService {
     final name = '${referenceNumber}_$submissionType.docx'.replaceAll('/', '_');
     final ref = _storage.ref().child('submissions').child(uid).child(name);
     try {
-      final uploadTask = ref.putData(bytes, SettableMetadata(contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
+      final uploadTask = ref.putData(
+          bytes,
+          SettableMetadata(
+              contentType:
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
       final snapshot = await uploadTask;
       if (snapshot.state != TaskState.success) {
         throw FirebaseException(
@@ -57,7 +62,7 @@ class StorageService {
       }
       final url = await ref.getDownloadURL();
       return url;
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (_) {
       rethrow;
     } catch (e) {
       throw FirebaseException(
@@ -86,24 +91,65 @@ class StorageService {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
     final name = '${referenceNumber}_fullpaper.pdf'.replaceAll('/', '_');
     final ref = _storage.ref().child('papers').child(uid).child(name);
-    
+
     try {
       final uploadTask = ref.putData(
         bytes,
         SettableMetadata(contentType: 'application/pdf'),
       );
       final snapshot = await uploadTask;
-      
+
       if (snapshot.state != TaskState.success) {
         throw FirebaseException(
           plugin: 'firebase_storage',
           message: 'Upload failed, task state: ${snapshot.state}',
         );
       }
-      
+
       final url = await ref.getDownloadURL();
       return url;
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (_) {
+      rethrow;
+    } catch (e) {
+      throw FirebaseException(
+        plugin: 'firebase_storage',
+        message: 'Unknown upload error: $e',
+      );
+    }
+  }
+
+  /// Upload payment file (receipt or ID card) and return download URL.
+  /// Path: payments/{uid}/{type}_{timestamp}.jpg
+  static Future<String> uploadPaymentFile({
+    required Uint8List bytes,
+    required String type, // 'receipt' or 'idcard'
+    required String extension,
+  }) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final name = '${type}_$timestamp.$extension';
+    final ref = _storage.ref().child('payments').child(uid).child(name);
+
+    try {
+      final uploadTask = ref.putData(
+        bytes,
+        SettableMetadata(
+            contentType: 'image/$extension' == 'jpg'
+                ? 'image/jpeg'
+                : 'image/$extension'),
+      );
+      final snapshot = await uploadTask;
+
+      if (snapshot.state != TaskState.success) {
+        throw FirebaseException(
+          plugin: 'firebase_storage',
+          message: 'Upload failed, task state: ${snapshot.state}',
+        );
+      }
+
+      final url = await ref.getDownloadURL();
+      return url;
+    } on FirebaseException catch (_) {
       rethrow;
     } catch (e) {
       throw FirebaseException(

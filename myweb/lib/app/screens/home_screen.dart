@@ -1,16 +1,23 @@
+import 'dart:typed_data';
 import 'dart:ui';
 import 'dart:html' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:file_saver/file_saver.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/payment_service.dart';
 import '../../models/app_settings.dart';
+import '../../models/user_profile.dart';
 import '../widgets/parallax_background.dart';
 import 'welcome_screen.dart';
 import 'submission_status_screen.dart';
 import 'submit_paper_screen.dart';
 import 'full_paper_submission_screen.dart';
 import 'payment_confirmation_screen.dart';
+import 'manual_payment_screen.dart';
 import '../widgets/glass_navbar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,7 +27,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
 
   @override
@@ -43,11 +51,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     // Custom Indigo/Violet Dark Theme
     const primaryIndigo = Color(0xFF6200EA);
     const accentViolet = Color(0xFF7C4DFF);
-    
+
     final darkTheme = ThemeData.dark().copyWith(
       colorScheme: const ColorScheme.dark(
         primary: accentViolet,
-        secondary: primaryIndigo, 
+        secondary: primaryIndigo,
         surface: Color(0xFF0F0E1C),
         error: Color(0xFFFF5252),
       ),
@@ -80,95 +88,188 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               // Main Content
               SafeArea(
                 child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                  behavior: ScrollConfiguration.of(context)
+                      .copyWith(scrollbars: false),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 700),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: FadeTransition(
-                        opacity: _animationController,
-                        child: StreamBuilder(
-                          stream: FirestoreService.appSettingsStream(),
-                          builder: (context, snapshot) {
-                            final settings = snapshot.hasData && snapshot.data?.data() != null
-                                ? AppSettings.fromMap(snapshot.data!.data())
-                                : AppSettings();
-                                
-                            return ListView(
-                              physics: const BouncingScrollPhysics(),
-                              padding: const EdgeInsets.symmetric(vertical: 24),
-                              children: [
-                                _buildWelcome(),
-                                const SizedBox(height: 32),
-                                
-                                Text(
-                                  'SUBMISSIONS',
-                                  style: TextStyle(
-                                    color: accentViolet,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                _buildGlassActionCard(
-                                  title: 'Abstract Submission',
-                                  subtitle: settings.abstractSubmissionOpen 
-                                      ? 'Submit your abstract for review.' 
-                                      : 'Submission is currently closed.',
-                                  icon: Icons.article_rounded,
-                                  open: settings.abstractSubmissionOpen,
-                                  onTap: () => _navigateToSubmit(context, 'abstract'),
-                                  accentColor: accentViolet,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildGlassActionCard(
-                                  title: 'Full Paper Submission',
-                                  subtitle: settings.fullPaperSubmissionOpen 
-                                      ? 'Submit your complete research paper.' 
-                                      : 'Submission is currently closed.',
-                                  icon: Icons.description_rounded,
-                                  open: settings.fullPaperSubmissionOpen,
-                                  onTap: () => _navigateToSubmit(context, 'fullpaper'),
-                                  accentColor: primaryIndigo,
-                                ),
-                                
-                                // ─── Payment Section ───
-                                _buildPaymentSection(accentViolet),
+                          opacity: _animationController,
+                          child: StreamBuilder(
+                            stream: FirestoreService.appSettingsStream(),
+                            builder: (context, snapshot) {
+                              final settings = snapshot.hasData &&
+                                      snapshot.data?.data() != null
+                                  ? AppSettings.fromMap(snapshot.data!.data())
+                                  : AppSettings();
 
-                                const SizedBox(height: 32),
-                                Text(
-                                  'MY ACCOUNT',
-                                  style: TextStyle(
-                                    color: accentViolet,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
-                                    fontSize: 12,
+                              return ListView(
+                                physics: const BouncingScrollPhysics(),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 24),
+                                children: [
+                                  _buildWelcome(),
+                                  const SizedBox(height: 32),
+
+                                  Text(
+                                    'SUBMISSIONS',
+                                    style: TextStyle(
+                                      color: accentViolet,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                      fontSize: 12,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                _buildGlassActionCard(
-                                  title: 'My Submissions',
-                                  subtitle: 'View status of your submitted papers.',
-                                  icon: Icons.list_alt_rounded,
-                                  open: true,
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const SubmissionStatusScreen(),
-                                      ),
-                                    );
-                                  },
-                                  accentColor: Colors.blueAccent,
-                                ),
-                              ],
-                            );
-                          },
+                                  const SizedBox(height: 16),
+
+                                  _buildGlassActionCard(
+                                    title: 'Abstract Submission',
+                                    subtitle: settings.abstractSubmissionOpen
+                                        ? 'Submit your abstract for review.'
+                                        : 'Submission is currently closed.',
+                                    icon: Icons.article_rounded,
+                                    open: settings.abstractSubmissionOpen,
+                                    onTap: () =>
+                                        _navigateToSubmit(context, 'abstract'),
+                                    accentColor: accentViolet,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildGlassActionCard(
+                                    title: 'Full Paper Submission',
+                                    subtitle: settings.fullPaperSubmissionOpen
+                                        ? 'Submit your complete research paper.'
+                                        : 'Submission is currently closed.',
+                                    icon: Icons.description_rounded,
+                                    open: settings.fullPaperSubmissionOpen,
+                                    onTap: () =>
+                                        _navigateToSubmit(context, 'fullpaper'),
+                                    accentColor: primaryIndigo,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  StreamBuilder<
+                                      DocumentSnapshot<Map<String, dynamic>>>(
+                                    stream: FirestoreService.userProfileStream(
+                                        AuthService.currentUser?.uid ?? ''),
+                                    builder: (context, profileSnapshot) {
+                                      final userData = profileSnapshot.hasData
+                                          ? profileSnapshot.data?.data()
+                                          : null;
+                                      final paymentStatus =
+                                          userData?['paymentStatus']
+                                                  as String? ??
+                                              'none';
+
+                                      String cardTitle =
+                                          'Upload Receipt & ID Card';
+                                      String cardSubtitle =
+                                          'Submit your bank transfer proof and ID card for manual verification.';
+                                      IconData cardIcon =
+                                          Icons.upload_file_rounded;
+                                      Color cardColor = const Color(0xFF00B0FF);
+                                      VoidCallback? cardTap;
+                                      bool cardOpen = true;
+
+                                      if (paymentStatus == 'verified') {
+                                        cardTitle = 'Verified Successfully';
+                                        cardSubtitle =
+                                            'Your payment and ID have been verified. Thank you!';
+                                        cardIcon = Icons.check_circle_rounded;
+                                        cardColor = Colors.green;
+                                        cardOpen = false; // Disable tapping
+                                      } else if (paymentStatus == 'pending') {
+                                        cardTitle = 'Verification Pending';
+                                        cardSubtitle =
+                                            'Your proof is currently under review by the administrator.';
+                                        cardIcon = Icons.hourglass_top_rounded;
+                                        cardColor = Colors.orange;
+                                        cardTap = () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ManualPaymentPendingScreen(),
+                                            ),
+                                          );
+                                        };
+                                      } else if (paymentStatus == 'rejected') {
+                                        cardTitle = 'Re-upload Proof';
+                                        cardSubtitle =
+                                            'Previous submission was rejected. Please upload correct files.';
+                                        cardIcon = Icons.error_outline_rounded;
+                                        cardColor = Colors.redAccent;
+                                        cardTap = () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ManualPaymentScreen(),
+                                            ),
+                                          );
+                                        };
+                                      } else {
+                                        // 'none'
+                                        cardTap = () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ManualPaymentScreen(),
+                                            ),
+                                          );
+                                        };
+                                      }
+
+                                      return Column(
+                                        children: [
+                                          _buildGlassActionCard(
+                                            title: cardTitle,
+                                            subtitle: cardSubtitle,
+                                            icon: cardIcon,
+                                            open: cardOpen,
+                                            onTap: cardTap ?? () {},
+                                            accentColor: cardColor,
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                      );
+                                    },
+                                  ),
+
+                                  // ─── Payment Section ───
+                                  _buildPaymentSection(accentViolet),
+
+                                  const SizedBox(height: 32),
+                                  Text(
+                                    'MY ACCOUNT',
+                                    style: TextStyle(
+                                      color: accentViolet,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  _buildGlassActionCard(
+                                    title: 'My Submissions',
+                                    subtitle:
+                                        'View status of your submitted papers.',
+                                    icon: Icons.list_alt_rounded,
+                                    open: true,
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const SubmissionStatusScreen(),
+                                        ),
+                                      );
+                                    },
+                                    accentColor: Colors.blueAccent,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                         ),
-                      ),
                       ),
                     ),
                   ),
@@ -183,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildWelcome() {
     final isMobile = MediaQuery.of(context).size.width <= 640;
-    
+
     return FutureBuilder(
       future: AuthService.getCurrentUserProfile(),
       builder: (context, snapshot) {
@@ -207,7 +308,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Stack(
                 children: [
-                   // Decorative Background Effect
+                  // Decorative Background Effect
                   Positioned(
                     right: -20,
                     top: -20,
@@ -217,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       color: const Color(0xFF7C4DFF).withOpacity(0.05),
                     ),
                   ),
-                  
+
                   // Main Content
                   IntrinsicHeight(
                     child: Row(
@@ -245,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ],
                           ),
                         ),
-                        
+
                         // Text Content
                         Expanded(
                           child: Padding(
@@ -274,23 +375,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                                 const SizedBox(height: 12),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.05),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                    border: Border.all(
+                                        color: Colors.white.withOpacity(0.1)),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.info_outline_rounded, size: 14, color: Colors.white70),
+                                      const Icon(Icons.info_outline_rounded,
+                                          size: 14, color: Colors.white70),
                                       const SizedBox(width: 8),
                                       Flexible(
                                         child: Text(
                                           'Submit your abstract or full paper below.',
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: Colors.white.withOpacity(0.8),
+                                            color:
+                                                Colors.white.withOpacity(0.8),
                                           ),
                                         ),
                                       ),
@@ -350,8 +455,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: open 
-                            ? accentColor.withOpacity(0.2) 
+                        color: open
+                            ? accentColor.withOpacity(0.2)
                             : Colors.grey.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -430,12 +535,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
         final hasApprovedPaper = data['hasApprovedPaper'] == true;
         final paymentStatus = data['paymentStatus'] as String?;
-        debugPrint('[PAYMENT] hasApprovedPaper=$hasApprovedPaper, paymentStatus=$paymentStatus');
+        debugPrint(
+            '[PAYMENT] hasApprovedPaper=$hasApprovedPaper, paymentStatus=$paymentStatus');
 
         // Only show section if user has an approved full paper
         if (!hasApprovedPaper) return const SizedBox.shrink();
 
-        final isPaid = paymentStatus == 'paid';
+        final isPaid = paymentStatus == 'paid' || paymentStatus == 'verified';
+        final isPending = paymentStatus == 'pending';
+        final isRejected = paymentStatus == 'rejected';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,11 +559,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
             const SizedBox(height: 16),
-
             if (isPaid) ...[
               _buildGlassActionCard(
                 title: 'Payment Completed',
-                subtitle: 'Conference fee paid successfully. TXN: ${data['paymentTxnId'] ?? 'N/A'}',
+                subtitle:
+                    'Conference fee paid successfully. TXN: ${data['paymentTxnId'] ?? 'N/A'}',
                 icon: Icons.check_circle_rounded,
                 open: false,
                 onTap: () {},
@@ -471,7 +579,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   final uid = AuthService.currentUser?.uid;
                   if (uid != null) {
                     final host = html.window.location.hostname ?? '';
-                    final backendBase = (host == 'localhost' || host == '127.0.0.1')
+                    final backendBase = (host == 'localhost' ||
+                            host == '127.0.0.1')
                         ? 'http://localhost:3001/api'
                         : 'https://ai-conference-payment-backend.onrender.com/api';
                     html.window.open(
@@ -492,7 +601,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   final uid = AuthService.currentUser?.uid;
                   if (uid != null) {
                     final host = html.window.location.hostname ?? '';
-                    final backendBase = (host == 'localhost' || host == '127.0.0.1')
+                    final backendBase = (host == 'localhost' ||
+                            host == '127.0.0.1')
                         ? 'http://localhost:3001/api'
                         : 'https://ai-conference-payment-backend.onrender.com/api';
                     html.window.open(
@@ -503,10 +613,43 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 },
                 accentColor: Colors.teal,
               ),
-            ] else
+            ] else if (isPending) ...[
               _buildGlassActionCard(
-                title: 'Pay Conference Fee',
-                subtitle: 'Your full paper is approved. Complete payment to confirm registration.',
+                title: 'Verification Pending',
+                subtitle:
+                    'Your manual payment proof is being reviewed by administrator.',
+                icon: Icons.hourglass_top_rounded,
+                open: true,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ManualPaymentPendingScreen(),
+                    ),
+                  );
+                },
+                accentColor: Colors.orange,
+              ),
+            ] else if (isRejected) ...[
+              _buildGlassActionCard(
+                title: 'Payment Rejected',
+                subtitle:
+                    'Reason: ${data['paymentRejectionReason'] ?? "Invalid proof"}. Click here to re-upload.',
+                icon: Icons.error_outline_rounded,
+                open: true,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ManualPaymentScreen(),
+                    ),
+                  );
+                },
+                accentColor: Colors.redAccent,
+              ),
+            ] else ...[
+              _buildGlassActionCard(
+                title: 'Pay Conference Fee (Online)',
+                subtitle:
+                    'Pay securely using credit/debit card, UPI, or Netbanking.',
                 icon: Icons.payment_rounded,
                 open: true,
                 onTap: () {
@@ -518,6 +661,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 },
                 accentColor: Colors.amber,
               ),
+              const SizedBox(height: 12),
+              _buildGlassActionCard(
+                title: 'Manual Bank Transfer',
+                subtitle: 'Download bank details and payment template.',
+                icon: Icons.account_balance_rounded,
+                open: true,
+                onTap: () async {
+                  final profile = await AuthService.getCurrentUserProfile();
+                  String selectedRole =
+                      profile?.role.toLowerCase() ?? 'scholar';
+                  String feeAmount =
+                      selectedRole == 'student' ? '₹250' : '₹500';
+                  String roleDisplay = selectedRole == 'student'
+                      ? 'Student'
+                      : 'Scholar (Faculty/Researcher)';
+                  _downloadManualTemplate(profile, feeAmount, roleDisplay);
+                },
+                accentColor: Colors.blueAccent,
+              ),
+              const SizedBox(height: 12),
+            ],
           ],
         );
       },
@@ -539,6 +703,67 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+    );
+  }
+
+  Future<void> _downloadManualTemplate(
+      UserProfile? userProfile, String feeAmount, String roleDisplay) async {
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        build: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.all(40),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Header(level: 0, text: 'MANUAL PAYMENT RECEIPT TEMPLATE'),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                  'Conference: International Conference on AI & Computing 2026'),
+              pw.SizedBox(height: 20),
+              pw.Text('USER DETAILS:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Name: ${userProfile?.name ?? "N/A"}'),
+              pw.Text('Email: ${userProfile?.email ?? "N/A"}'),
+              pw.Text('Category: $roleDisplay'),
+              pw.SizedBox(height: 20),
+              pw.Text('PAYMENT DETAILS:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Amount to Pay: $feeAmount'),
+              pw.SizedBox(height: 10),
+              pw.Text('BANK ACCOUNT DETAILS (TRANSFER TO):',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Bank Name: ABC International Bank'),
+              pw.Text('Account Name: AI Conference Organizing Committee'),
+              pw.Text('Account Number: 987654321012'),
+              pw.Text('IFSC Code: ABCI0001234'),
+              pw.Text('Branch: Main City Branch'),
+              pw.SizedBox(height: 30),
+              pw.Divider(),
+              pw.SizedBox(height: 10),
+              pw.Text('INSTRUCTIONS:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                  '1. Transfer the exact amount mentioned above to the bank account.'),
+              pw.Text('2. Keep the transaction receipt/screenshot.'),
+              pw.Text('3. Ensure your ID card (Student/Researcher) is ready.'),
+              pw.Text(
+                  '4. Upload both the receipt and your ID card in the manual verification section of the app.'),
+              pw.SizedBox(height: 40),
+              pw.Text(
+                  'Generated on: ${DateFormat.yMMMd().add_Hm().format(DateTime.now())}'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final bytes = await pdf.save();
+    await FileSaver.instance.saveFile(
+      'Payment_Receipt_Template.pdf',
+      Uint8List.fromList(bytes),
+      "pdf",
+      mimeType: MimeType.PDF,
     );
   }
 }

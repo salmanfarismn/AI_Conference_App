@@ -1,6 +1,10 @@
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:file_saver/file_saver.dart';
+import 'package:intl/intl.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/payment_service.dart';
@@ -86,7 +90,9 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
   }
 
   String get _roleDisplay {
-    return _selectedRole == 'student' ? 'Student' : 'Scholar (Faculty/Researcher)';
+    return _selectedRole == 'student'
+        ? 'Student'
+        : 'Scholar (Faculty/Researcher)';
   }
 
   Future<void> _proceedToPayment() async {
@@ -116,7 +122,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
           webOnlyWindowName: '_self',
         );
       } else {
-        _showSnackBar(result['error'] ?? 'Payment initiation failed.', isError: true);
+        _showSnackBar(result['error'] ?? 'Payment initiation failed.',
+            isError: true);
       }
     } catch (e) {
       if (!mounted) return;
@@ -165,7 +172,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
         body: ParallaxBackground(
           child: SafeArea(
             child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+              behavior:
+                  ScrollConfiguration.of(context).copyWith(scrollbars: false),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600),
@@ -175,11 +183,13 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
                       opacity: _animationController,
                       child: _loading
                           ? const Center(
-                              child: CircularProgressIndicator(color: accentViolet),
+                              child: CircularProgressIndicator(
+                                  color: accentViolet),
                             )
                           : _error != null
                               ? _buildErrorState()
-                              : _buildConfirmationContent(accentViolet, primaryIndigo),
+                              : _buildConfirmationContent(
+                                  accentViolet, primaryIndigo),
                     ),
                   ),
                 ),
@@ -196,11 +206,13 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 64, color: Colors.white.withOpacity(0.3)),
+          Icon(Icons.error_outline,
+              size: 64, color: Colors.white.withOpacity(0.3)),
           const SizedBox(height: 16),
           Text(
             _error ?? 'An error occurred.',
-            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -245,9 +257,11 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
           // User Info Card
           _buildGlassCard(
             children: [
-              _buildInfoTile(Icons.person_rounded, 'Name', _userProfile?.name ?? 'N/A'),
+              _buildInfoTile(
+                  Icons.person_rounded, 'Name', _userProfile?.name ?? 'N/A'),
               const SizedBox(height: 12),
-              _buildInfoTile(Icons.email_rounded, 'Email', _userProfile?.email ?? 'N/A'),
+              _buildInfoTile(
+                  Icons.email_rounded, 'Email', _userProfile?.email ?? 'N/A'),
               const SizedBox(height: 12),
               _buildInfoTile(
                 Icons.phone_rounded,
@@ -270,7 +284,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
                       color: accentViolet.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.school_rounded, color: accentViolet, size: 24),
+                    child: Icon(Icons.school_rounded,
+                        color: accentViolet, size: 24),
                   ),
                   const SizedBox(width: 16),
                   const Text(
@@ -327,7 +342,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
                           ],
                         ),
                       ),
-                      Icon(Icons.lock_outline, size: 18, color: Colors.white.withOpacity(0.4)),
+                      Icon(Icons.lock_outline,
+                          size: 18, color: Colors.white.withOpacity(0.4)),
                     ],
                   ),
                 ),
@@ -366,7 +382,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [accentViolet, primaryIndigo],
@@ -399,7 +416,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
             ),
             child: Row(
               children: [
-                const Icon(Icons.security_rounded, size: 20, color: Colors.blueAccent),
+                const Icon(Icons.security_rounded,
+                    size: 20, color: Colors.blueAccent),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -456,6 +474,102 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
                     ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Manual Payment option
+          Center(
+            child: Text(
+              'OR',
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.3),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          SizedBox(
+            height: 56,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final pdf = pw.Document();
+                pdf.addPage(
+                  pw.Page(
+                    build: (context) => pw.Padding(
+                      padding: const pw.EdgeInsets.all(40),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Header(
+                              level: 0,
+                              text: 'MANUAL PAYMENT RECEIPT TEMPLATE'),
+                          pw.SizedBox(height: 20),
+                          pw.Text(
+                              'Conference: International Conference on AI & Computing 2026'),
+                          pw.SizedBox(height: 20),
+                          pw.Text('USER DETAILS:',
+                              style:
+                                  pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          pw.Text('Name: ${_userProfile?.name ?? "N/A"}'),
+                          pw.Text('Email: ${_userProfile?.email ?? "N/A"}'),
+                          pw.Text('Category: $_roleDisplay'),
+                          pw.SizedBox(height: 20),
+                          pw.Text('PAYMENT DETAILS:',
+                              style:
+                                  pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          pw.Text('Amount to Pay: $_feeAmount'),
+                          pw.SizedBox(height: 10),
+                          pw.Text('BANK ACCOUNT DETAILS (TRANSFER TO):',
+                              style:
+                                  pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          pw.Text('Bank Name: ABC International Bank'),
+                          pw.Text(
+                              'Account Name: AI Conference Organizing Committee'),
+                          pw.Text('Account Number: 987654321012'),
+                          pw.Text('IFSC Code: ABCI0001234'),
+                          pw.Text('Branch: Main City Branch'),
+                          pw.SizedBox(height: 30),
+                          pw.Divider(),
+                          pw.SizedBox(height: 10),
+                          pw.Text('INSTRUCTIONS:',
+                              style:
+                                  pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          pw.Text(
+                              '1. Transfer the exact amount mentioned above to the bank account.'),
+                          pw.Text(
+                              '2. Keep the transaction receipt/screenshot.'),
+                          pw.Text(
+                              '3. Ensure your ID card (Student/Researcher) is ready.'),
+                          pw.Text(
+                              '4. Upload both the receipt and your ID card in the manual verification section of the app.'),
+                          pw.SizedBox(height: 40),
+                          pw.Text(
+                              'Generated on: ${DateFormat.yMMMd().add_Hm().format(DateTime.now())}'),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+
+                final bytes = await pdf.save();
+                await FileSaver.instance.saveFile(
+                  'Payment_Receipt_Template.pdf',
+                  Uint8List.fromList(bytes),
+                  "pdf",
+                  mimeType: MimeType.PDF,
+                );
+              },
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('1. Download Payment Receipt Template'),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white24),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
           const SizedBox(height: 16),
 
@@ -490,10 +604,14 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? accentColor.withOpacity(0.12) : Colors.black.withOpacity(0.15),
+          color: isSelected
+              ? accentColor.withOpacity(0.12)
+              : Colors.black.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? accentColor.withOpacity(0.5) : Colors.white.withOpacity(0.1),
+            color: isSelected
+                ? accentColor.withOpacity(0.5)
+                : Colors.white.withOpacity(0.1),
             width: isSelected ? 1.5 : 1,
           ),
         ),

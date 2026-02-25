@@ -9,6 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:file_saver/file_saver.dart';
 
 import '../models/submission.dart';
+import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'admin_login_screen.dart';
@@ -42,24 +43,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: _buildDrawer(),
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: _logout,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        drawer: _buildDrawer(),
+        appBar: AppBar(
+          title: const Text('Admin Dashboard'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+              onPressed: _logout,
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.description), text: 'Submissions'),
+              Tab(icon: Icon(Icons.payments), text: 'Payments'),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildFilters(),
-          Expanded(child: _buildSubmissionsList()),
-        ],
+        ),
+        body: TabBarView(
+          children: [
+            Column(
+              children: [
+                _buildFilters(),
+                Expanded(child: _buildSubmissionsList()),
+              ],
+            ),
+            _buildPaymentsList(),
+          ],
+        ),
       ),
     );
   }
@@ -141,15 +156,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             labelText: 'Status',
                             border: OutlineInputBorder(),
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'all', child: Text('All Status')),
-                            DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                            DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
-                            DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                            DropdownMenuItem(
+                                value: 'all', child: Text('All Status')),
+                            DropdownMenuItem(
+                                value: 'accepted', child: Text('Accepted')),
+                            DropdownMenuItem(
+                                value: 'accepted_with_revision',
+                                child: Text('Accepted with Revision')),
+                            DropdownMenuItem(
+                                value: 'rejected', child: Text('Rejected')),
                           ],
-                          onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
+                          onChanged: (v) =>
+                              setState(() => _statusFilter = v ?? 'all'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
@@ -158,14 +180,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             labelText: 'Type',
                             border: OutlineInputBorder(),
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'all', child: Text('All Types')),
-                            DropdownMenuItem(value: 'abstract', child: Text('Abstract')),
-                            DropdownMenuItem(value: 'fullpaper', child: Text('Full Paper')),
+                            DropdownMenuItem(
+                                value: 'all', child: Text('All Types')),
+                            DropdownMenuItem(
+                                value: 'abstract', child: Text('Abstract')),
+                            DropdownMenuItem(
+                                value: 'fullpaper', child: Text('Full Paper')),
                           ],
-                          onChanged: (v) => setState(() => _typeFilter = v ?? 'all'),
+                          onChanged: (v) =>
+                              setState(() => _typeFilter = v ?? 'all'),
                         ),
                       ],
                     )
@@ -179,15 +206,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               labelText: 'Status',
                               border: OutlineInputBorder(),
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'all', child: Text('All Status')),
-                              DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                              DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
-                              DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                              DropdownMenuItem(
+                                  value: 'all', child: Text('All Status')),
+                              DropdownMenuItem(
+                                  value: 'accepted', child: Text('Accepted')),
+                              DropdownMenuItem(
+                                  value: 'accepted_with_revision',
+                                  child: Text('Accepted with Revision')),
+                              DropdownMenuItem(
+                                  value: 'rejected', child: Text('Rejected')),
                             ],
-                            onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
+                            onChanged: (v) =>
+                                setState(() => _statusFilter = v ?? 'all'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -199,14 +233,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               labelText: 'Type',
                               border: OutlineInputBorder(),
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'all', child: Text('All Types')),
-                              DropdownMenuItem(value: 'abstract', child: Text('Abstract')),
-                              DropdownMenuItem(value: 'fullpaper', child: Text('Full Paper')),
+                              DropdownMenuItem(
+                                  value: 'all', child: Text('All Types')),
+                              DropdownMenuItem(
+                                  value: 'abstract', child: Text('Abstract')),
+                              DropdownMenuItem(
+                                  value: 'fullpaper',
+                                  child: Text('Full Paper')),
                             ],
-                            onChanged: (v) => setState(() => _typeFilter = v ?? 'all'),
+                            onChanged: (v) =>
+                                setState(() => _typeFilter = v ?? 'all'),
                           ),
                         ),
                       ],
@@ -265,7 +305,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           s.authorsDisplay.toLowerCase().contains(query);
 
       final matchesStatus = _statusFilter == 'all' || s.status == _statusFilter;
-      final matchesType = _typeFilter == 'all' || s.submissionType == _typeFilter;
+      final matchesType =
+          _typeFilter == 'all' || s.submissionType == _typeFilter;
 
       return matchesSearch && matchesStatus && matchesType;
     }).toList();
@@ -328,7 +369,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> _showReviewDialog(Submission submission) async {
     String selectedStatus = _mapToValidStatus(submission.status);
-    final commentsController = TextEditingController(text: submission.reviewComments ?? '');
+    final commentsController =
+        TextEditingController(text: submission.reviewComments ?? '');
 
     await showDialog(
       context: context,
@@ -342,44 +384,52 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(
                   submission.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Authors info
                 if (submission.authors.isNotEmpty) ...[
-                  const Text('Authors:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const Text('Authors:',
+                      style: TextStyle(fontWeight: FontWeight.w500)),
                   const SizedBox(height: 4),
                   ...submission.authors.map((a) => Padding(
-                    padding: const EdgeInsets.only(left: 8, bottom: 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${a.isMainAuthor ? "• " : "  "}${a.name}${a.isMainAuthor ? " (Main)" : ""}',
-                          style: TextStyle(
-                            fontWeight: a.isMainAuthor ? FontWeight.w600 : FontWeight.normal,
-                          ),
+                        padding: const EdgeInsets.only(left: 8, bottom: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${a.isMainAuthor ? "• " : "  "}${a.name}${a.isMainAuthor ? " (Main)" : ""}',
+                              style: TextStyle(
+                                fontWeight: a.isMainAuthor
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            if (a.affiliation.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Text(
+                                  a.affiliation,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600),
+                                ),
+                              ),
+                            if (a.email != null && a.email!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Text(
+                                  a.email!,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.blue.shade600),
+                                ),
+                              ),
+                          ],
                         ),
-                        if (a.affiliation.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Text(
-                              a.affiliation,
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                            ),
-                          ),
-                        if (a.email != null && a.email!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Text(
-                              a.email!,
-                              style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
-                            ),
-                          ),
-                      ],
-                    ),
-                  )),
+                      )),
                   const SizedBox(height: 16),
                 ],
 
@@ -391,11 +441,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                    DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
-                    DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                    DropdownMenuItem(
+                        value: 'accepted', child: Text('Accepted')),
+                    DropdownMenuItem(
+                        value: 'accepted_with_revision',
+                        child: Text('Accepted with Revision')),
+                    DropdownMenuItem(
+                        value: 'rejected', child: Text('Rejected')),
                   ],
-                  onChanged: (v) => setDialogState(() => selectedStatus = v ?? 'pending'),
+                  onChanged: (v) =>
+                      setDialogState(() => selectedStatus = v ?? 'pending'),
                 ),
                 const SizedBox(height: 16),
 
@@ -455,6 +510,575 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     );
   }
+
+  Widget _buildPaymentsList() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      // Show ALL users who have uploaded proof (pending OR rejected who re-uploaded)
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('paymentStatus', whereIn: ['pending', 'rejected']).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        // Filter: only show users who actually have a receiptUrl uploaded
+        final allDocs = snapshot.data?.docs ?? [];
+        final usersWithUploads = allDocs
+            .where((doc) =>
+                (doc.data()['receiptUrl'] as String?)?.isNotEmpty == true)
+            .toList();
+
+        if (usersWithUploads.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_outline,
+                    size: 64, color: Colors.green.shade300),
+                const SizedBox(height: 16),
+                const Text(
+                  'No pending payment verifications',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: usersWithUploads.length,
+          itemBuilder: (context, index) {
+            final doc = usersWithUploads[index];
+            final userData = doc.data();
+            final uid = doc.id;
+            final profile = UserProfile.fromMap(uid, userData);
+            final submittedAt = (userData['paymentSubmittedAt'] as dynamic)
+                ?.toDate() as DateTime?;
+
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header row
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: profile.paymentStatus == 'rejected'
+                              ? Colors.red.shade100
+                              : Colors.orange.shade100,
+                          child: Icon(
+                            Icons.person,
+                            color: profile.paymentStatus == 'rejected'
+                                ? Colors.red
+                                : Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              Text(profile.email,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: profile.paymentStatus == 'rejected'
+                                ? Colors.red.shade100
+                                : Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            profile.paymentStatus == 'rejected'
+                                ? 'Re-uploaded'
+                                : 'Pending Review',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: profile.paymentStatus == 'rejected'
+                                  ? Colors.red.shade700
+                                  : Colors.orange.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Details
+                    _infoRow(Icons.badge_outlined,
+                        'Category: ${profile.role.toUpperCase()}'),
+                    if (profile.institution?.isNotEmpty == true)
+                      _infoRow(Icons.school_outlined,
+                          'Institution: ${profile.institution}'),
+                    if (submittedAt != null)
+                      _infoRow(
+                        Icons.access_time,
+                        'Uploaded: ${DateFormat.yMMMd().add_Hm().format(submittedAt)}',
+                      ),
+
+                    const SizedBox(height: 12),
+
+                    // Thumbnail previews
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildThumbnail('Receipt', profile.receiptUrl),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildThumbnail('ID Card', profile.idCardUrl),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('View Full'),
+                            onPressed: () => _showPaymentReviewDialog(profile),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.close, size: 16),
+                            label: const Text('Reject'),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white),
+                            onPressed: () async {
+                              final reason = await _showRejectionReasonDialog();
+                              if (reason != null && reason.isNotEmpty) {
+                                await FirestoreService.updatePaymentStatus(
+                                  uid: profile.uid,
+                                  status: 'rejected',
+                                  rejectionReason: reason,
+                                );
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Payment rejected.'),
+                                      backgroundColor: Colors.red),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check, size: 16),
+                            label: const Text('Accept'),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white),
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Confirm Acceptance'),
+                                  content: Text(
+                                      'Accept payment from ${profile.name}?'),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Cancel')),
+                                    FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: const Text('Accept')),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true) {
+                                await FirestoreService.updatePaymentStatus(
+                                  uid: profile.uid,
+                                  status: 'verified',
+                                );
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        '${profile.name}\'s payment verified!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _infoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey),
+          const SizedBox(width: 6),
+          Expanded(
+              child: Text(text,
+                  style: const TextStyle(fontSize: 13, color: Colors.black87))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThumbnail(String label, String? url) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: url != null
+              ? () => launchUrlString(url, webOnlyWindowName: '_blank')
+              : null,
+          child: Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.shade100,
+            ),
+            child: url != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.broken_image,
+                                    color: Colors.grey, size: 32),
+                                Text('Tap to open',
+                                    style: TextStyle(
+                                        fontSize: 10, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2));
+                          },
+                        ),
+                        Positioned(
+                          bottom: 4,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Icon(Icons.open_in_new,
+                                color: Colors.white, size: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.image_not_supported,
+                            color: Colors.grey, size: 32),
+                        Text('Not uploaded',
+                            style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showPaymentReviewDialog(UserProfile profile) async {
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(Icons.person, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(profile.name,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(profile.email,
+                              style: const TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context)),
+                  ],
+                ),
+                const Divider(height: 24),
+
+                // Info
+                _infoRow(Icons.badge_outlined,
+                    'Category: ${profile.role.toUpperCase()}'),
+                if (profile.institution?.isNotEmpty == true)
+                  _infoRow(Icons.school_outlined,
+                      'Institution: ${profile.institution}'),
+                const SizedBox(height: 16),
+
+                // Full size images
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildFullImagePreview(
+                            'Payment Receipt', profile.receiptUrl),
+                        const SizedBox(height: 16),
+                        _buildFullImagePreview('ID Card', profile.idCardUrl),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white),
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          final reason = await _showRejectionReasonDialog();
+                          if (reason != null && reason.isNotEmpty) {
+                            await FirestoreService.updatePaymentStatus(
+                              uid: profile.uid,
+                              status: 'rejected',
+                              rejectionReason: reason,
+                            );
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Payment rejected.'),
+                                  backgroundColor: Colors.red),
+                            );
+                          }
+                        },
+                        child: const Text('Reject'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green),
+                        onPressed: () async {
+                          await FirestoreService.updatePaymentStatus(
+                            uid: profile.uid,
+                            status: 'verified',
+                          );
+                          if (!mounted) return;
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('${profile.name}\'s payment verified!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        },
+                        child: const Text('Accept'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullImagePreview(String label, String? url) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const Spacer(),
+            if (url != null)
+              TextButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 14),
+                label: const Text('Open in browser'),
+                onPressed: () =>
+                    launchUrlString(url, webOnlyWindowName: '_blank'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 220,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(10),
+            color: Colors.grey.shade100,
+          ),
+          child: url != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.broken_image,
+                            color: Colors.grey, size: 48),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Cannot load image preview.\nTap "Open in browser" to view.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.open_in_browser),
+                          label: const Text('Open File'),
+                          onPressed: () =>
+                              launchUrlString(url, webOnlyWindowName: '_blank'),
+                        ),
+                      ],
+                    ),
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(child: CircularProgressIndicator());
+                    },
+                  ),
+                )
+              : const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.image_not_supported,
+                          color: Colors.grey, size: 48),
+                      SizedBox(height: 8),
+                      Text('No file uploaded',
+                          style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<String?> _showRejectionReasonDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rejection Reason'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText:
+                'e.g. Receipt is unclear, ID card not matching, wrong amount...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ===================== SUBMISSION CARD =====================
@@ -485,23 +1109,27 @@ class _SubmissionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     submission.title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: submission.submissionType == 'fullpaper' 
-                        ? Colors.purple.shade100 
+                    color: submission.submissionType == 'fullpaper'
+                        ? Colors.purple.shade100
                         : Colors.blue.shade100,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    submission.submissionType == 'fullpaper' ? 'Full Paper' : 'Abstract',
+                    submission.submissionType == 'fullpaper'
+                        ? 'Full Paper'
+                        : 'Abstract',
                     style: TextStyle(
                       fontSize: 10,
-                      color: submission.submissionType == 'fullpaper' 
-                          ? Colors.purple.shade700 
+                      color: submission.submissionType == 'fullpaper'
+                          ? Colors.purple.shade700
                           : Colors.blue.shade700,
                     ),
                   ),
@@ -509,18 +1137,18 @@ class _SubmissionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            
+
             // Reference
             Text('Ref: ${submission.referenceNumber}'),
-            
+
             // Authors
             Text(
               'Authors: ${submission.authorsDisplay}',
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
-            
+
             const SizedBox(height: 4),
-            
+
             // Status chip
             Chip(
               label: Text(_statusLabel(submission.status)),
@@ -532,7 +1160,7 @@ class _SubmissionCard extends StatelessWidget {
               ),
               labelStyle: TextStyle(color: _statusColor(submission.status)),
             ),
-            
+
             if (submission.createdAt != null)
               Text(
                 'Submitted: ${DateFormat.yMMMd().add_Hm().format(submission.createdAt!)}',
@@ -540,7 +1168,8 @@ class _SubmissionCard extends StatelessWidget {
               ),
 
             // Review comments preview
-            if (submission.reviewComments != null && submission.reviewComments!.isNotEmpty)
+            if (submission.reviewComments != null &&
+                submission.reviewComments!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Container(
@@ -551,14 +1180,16 @@ class _SubmissionCard extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.comment, size: 16, color: Colors.amber.shade700),
+                      Icon(Icons.comment,
+                          size: 16, color: Colors.amber.shade700),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           submission.reviewComments!,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.amber.shade900),
                         ),
                       ),
                     ],
@@ -579,7 +1210,7 @@ class _SubmissionCard extends StatelessWidget {
               ),
 
             const SizedBox(height: 10),
-            
+
             // Action buttons
             isMobile
                 ? Column(
@@ -594,10 +1225,12 @@ class _SubmissionCard extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
+                          if (submission.pdfUrl != null &&
+                              submission.pdfUrl!.isNotEmpty)
                             IconButton(
                               tooltip: 'Download PDF',
-                              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                              icon: const Icon(Icons.picture_as_pdf,
+                                  color: Colors.red),
                               onPressed: () async {
                                 await launchUrlString(submission.pdfUrl!,
                                     webOnlyWindowName: '_blank');
@@ -626,16 +1259,19 @@ class _SubmissionCard extends StatelessWidget {
                                 pdf.addPage(
                                   pw.Page(
                                     build: (context) => pw.Column(
-                                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          pw.CrossAxisAlignment.start,
                                       children: [
                                         pw.Text(
                                             'Reference: ${submission.referenceNumber}',
                                             style: pw.TextStyle(
                                                 fontSize: 14,
-                                                fontWeight: pw.FontWeight.bold)),
+                                                fontWeight:
+                                                    pw.FontWeight.bold)),
                                         pw.Text('Title: ${submission.title}',
                                             style: pw.TextStyle(fontSize: 12)),
-                                        pw.Text('Authors: ${submission.authorsDisplay}',
+                                        pw.Text(
+                                            'Authors: ${submission.authorsDisplay}',
                                             style: pw.TextStyle(fontSize: 12)),
                                         pw.SizedBox(height: 10),
                                         pw.Text(submission.extractedText!,
@@ -670,10 +1306,12 @@ class _SubmissionCard extends StatelessWidget {
                       const Spacer(),
 
                       // Download PDF
-                      if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
+                      if (submission.pdfUrl != null &&
+                          submission.pdfUrl!.isNotEmpty)
                         IconButton(
                           tooltip: 'Download PDF',
-                          icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                          icon: const Icon(Icons.picture_as_pdf,
+                              color: Colors.red),
                           onPressed: () async {
                             await launchUrlString(submission.pdfUrl!,
                                 webOnlyWindowName: '_blank');
@@ -708,7 +1346,8 @@ class _SubmissionCard extends StatelessWidget {
                             pdf.addPage(
                               pw.Page(
                                 build: (context) => pw.Column(
-                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      pw.CrossAxisAlignment.start,
                                   children: [
                                     pw.Text(
                                         'Reference: ${submission.referenceNumber}',
@@ -717,7 +1356,8 @@ class _SubmissionCard extends StatelessWidget {
                                             fontWeight: pw.FontWeight.bold)),
                                     pw.Text('Title: ${submission.title}',
                                         style: pw.TextStyle(fontSize: 12)),
-                                    pw.Text('Authors: ${submission.authorsDisplay}',
+                                    pw.Text(
+                                        'Authors: ${submission.authorsDisplay}',
                                         style: pw.TextStyle(fontSize: 12)),
                                     pw.SizedBox(height: 10),
                                     pw.Text(submission.extractedText!,

@@ -10,51 +10,50 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // List of admin emails - add your admin email(s) here
-    function isAdminEmail(email) {
-      return email in [
-        'admin@conferenceapp.com',
-        'admin@example.com'
-        // Add more admin emails as needed
-      ];
-    }
-
+    // ─── Admin check ───
+    // The admin is identified by their Firebase Auth email.
+    // Add your admin email(s) to this list.
     function isAdmin() {
-      // Check for custom claim OR admin email list
-      return request.auth != null && (
-        request.auth.token.role == 'admin' ||
-        isAdminEmail(request.auth.token.email)
-      );
+      return request.auth != null &&
+        request.auth.token.email in [
+          'admin@example.com'
+        ];
     }
 
+    // ——— Users collection ———
     match /users/{userId} {
+      // Users can read/write their own profile
       allow read, write: if isOwner(userId);
+
+      // Admins can read ANY user (needed for payment list stream)
+      allow read: if isAdmin();
+
+      // Admins can update any user document (to set paymentStatus etc.)
+      allow update: if isAdmin();
     }
 
+    // ——— Submissions collection ———
     match /submissions/{submissionId} {
-      // Anyone signed in can create submissions
       allow create: if isSignedIn();
-      
-      // Allow all authenticated users to read submissions (for admin panel access)
-      allow read: if isSignedIn();
-      
-      // Users can update their own submissions (except status/review fields)
-      // Admins can update any submission (including status/review)
+      allow read:   if isSignedIn();
+
       allow update: if isSignedIn() && (
-        (resource.data.uid == request.auth.uid && 
-         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'reviewedBy', 'reviewedAt', 'reviewComments'])) ||
+        (resource.data.uid == request.auth.uid &&
+         !request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['status', 'reviewedBy', 'reviewedAt', 'reviewComments'])) ||
         isAdmin()
       );
-      
-      // Only admins can delete submissions
+
       allow delete: if isAdmin();
     }
 
+    // ——— App settings ———
     match /app_settings/{doc} {
-      allow read: if isSignedIn();
+      allow read:  if isSignedIn();
       allow write: if isAdmin();
     }
 
+    // ——— Counters ———
     match /counters/{doc} {
       allow read, write: if isSignedIn();
     }

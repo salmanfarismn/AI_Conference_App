@@ -6,6 +6,10 @@ class UserProfile {
   final String phone;
   final String role; // 'student' | 'scholar'
   final String? institution;
+  final String paymentStatus; // 'none' | 'pending' | 'verified' | 'rejected'
+  final String? receiptUrl;
+  final String? idCardUrl;
+  final String? paymentRejectionReason;
 
   UserProfile({
     required this.uid,
@@ -14,6 +18,10 @@ class UserProfile {
     required this.phone,
     required this.role,
     this.institution,
+    this.paymentStatus = 'none',
+    this.receiptUrl,
+    this.idCardUrl,
+    this.paymentRejectionReason,
   });
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -24,6 +32,10 @@ class UserProfile {
       phone: map['phone'] as String? ?? '',
       role: map['role'] as String? ?? 'student',
       institution: map['institution'] as String?,
+      paymentStatus: map['paymentStatus'] as String? ?? 'none',
+      receiptUrl: map['receiptUrl'] as String?,
+      idCardUrl: map['idCardUrl'] as String?,
+      paymentRejectionReason: map['paymentRejectionReason'] as String?,
     );
   }
 
@@ -34,5 +46,9 @@ class UserProfile {
         'phone': phone,
         'role': role,
         'institution': institution,
+        'paymentStatus': paymentStatus,
+        'receiptUrl': receiptUrl,
+        'idCardUrl': idCardUrl,
+        'paymentRejectionReason': paymentRejectionReason,
       };
 }
