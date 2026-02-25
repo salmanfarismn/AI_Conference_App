@@ -31,8 +31,8 @@ class ConferenceApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // Use initialRoute instead of home so Flutter web respects the URL hash
-      initialRoute: '/',
+      // ✅ All routes handled via onGenerateRoute — no home or initialRoute
+      // so Flutter web reads the route from the URL hash directly
 
       // ✅ All routes handled here — public routes bypass auth
       onGenerateRoute: (settings) {
