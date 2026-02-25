@@ -18,6 +18,9 @@ class PaymentService {
         : _prodBackendUrl;
   }
 
+  /// Exposed for debug logging only.
+  static String get debugBaseUrl => _baseUrl;
+
   /// Initiate payment for a user.
   /// Returns a map with { success, paymentUrl, accessKey, txnid, amount, role }
   /// or { success: false, error: '...' }
@@ -74,6 +77,55 @@ class PaymentService {
         return {
           'success': false,
           'error': data['error'] ?? 'Failed to fetch payment status.',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Network error: $e',
+      };
+    }
+  }
+
+  /// Initiate attendee registration payment.
+  /// Does NOT require user login — attendees can register publicly.
+  /// Returns a map with { success, paymentUrl, accessKey, txnid, amount }
+  /// or { success: false, error: '...' }
+  static Future<Map<String, dynamic>> createAttendeePayment({
+    required String name,
+    required String email,
+    required String phone,
+    String organization = '',
+  }) async {
+    try {
+      final frontendUrl = html.window.location.origin;
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/create-attendee-payment'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'organization': organization,
+          'frontendUrl': frontendUrl,
+        }),
+      );
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {
+          'success': true,
+          'paymentUrl': data['paymentUrl'] as String,
+          'accessKey': data['accessKey'] as String,
+          'txnid': data['txnid'] as String,
+          'amount': data['amount'] as String,
+        };
+      } else {
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Failed to initiate attendee payment.',
         };
       }
     } catch (e) {

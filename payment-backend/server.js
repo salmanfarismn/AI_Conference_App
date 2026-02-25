@@ -23,9 +23,16 @@ const cors = require("cors");
 const { initializeFirebase } = require("./utils/firebase");
 const paymentRoutes = require("./routes/paymentRoutes");
 const receiptRoutes = require("./routes/receiptRoutes");
+const attendeeRoutes = require("./routes/attendeeRoutes");
+const attendeeReceiptRoutes = require("./routes/attendeeReceiptRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Trust proxy headers (required for Render/Heroku/etc.)
+// Without this, req.protocol is always 'http' behind a reverse proxy,
+// which breaks Easebuzz surl/furl callback URLs in production.
+app.set('trust proxy', 1);
 
 // ──────────────── Middleware ────────────────
 
@@ -71,6 +78,8 @@ console.log("✅ Firebase Admin SDK initialized");
 
 app.use("/api", paymentRoutes);
 app.use("/api", receiptRoutes);
+app.use("/api", attendeeRoutes);
+app.use("/api", attendeeReceiptRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -98,5 +107,6 @@ app.listen(PORT, () => {
     console.log(`\n🚀 Payment Backend running on port ${PORT}`);
     console.log(`   Environment: ${process.env.EASEBUZZ_ENV || "test"}`);
     console.log(`   Health: http://localhost:${PORT}/api/health`);
+    console.log(`   Backend URL: ${process.env.BACKEND_URL || "(auto-detected from request)"}`);
     console.log(`   Frontend URL: ${process.env.FRONTEND_URL || "http://localhost:5000"}\n`);
 });

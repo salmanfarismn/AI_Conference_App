@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 
 import '../widgets/parallax_background.dart';
@@ -15,6 +16,7 @@ class PaymentResultScreen extends StatelessWidget {
   final String? txnid;
   final String? amount;
   final String? reason;
+  final String? paymentType;
 
   const PaymentResultScreen({
     super.key,
@@ -22,9 +24,11 @@ class PaymentResultScreen extends StatelessWidget {
     this.txnid,
     this.amount,
     this.reason,
+    this.paymentType,
   });
 
   bool get isSuccess => status == 'success';
+  bool get isAttendee => paymentType == 'attendee';
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +137,9 @@ class PaymentResultScreen extends StatelessWidget {
                 // Subtitle
                 Text(
                   isSuccess
-                      ? 'Your conference registration fee has been paid successfully.'
+                      ? (isAttendee
+                          ? 'Your attendee registration has been confirmed. Welcome to UCC ICON 2026!'
+                          : 'Your conference registration fee has been paid successfully.')
                       : _getFailureMessage(),
                   style: TextStyle(
                     fontSize: 15,
@@ -154,6 +160,48 @@ class PaymentResultScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     _buildDetailRow('Amount Paid', '₹$amount'),
                   ],
+                  if (isAttendee) ...[
+                    const SizedBox(height: 8),
+                    _buildDetailRow('Type', 'Attendee Registration'),
+                  ],
+                ],
+
+                // Attendee receipt actions
+                if (isSuccess && isAttendee && txnid != null) ...[
+                  const SizedBox(height: 24),
+                  const Divider(color: Colors.white10),
+                  const SizedBox(height: 16),
+                  _buildReceiptButton(
+                    label: 'View Receipt',
+                    icon: Icons.receipt_long_rounded,
+                    color: const Color(0xFF7C4DFF),
+                    onTap: () {
+                      final host = html.window.location.hostname ?? '';
+                      final backendBase = (host == 'localhost' || host == '127.0.0.1')
+                          ? 'http://localhost:3001/api'
+                          : 'https://ai-conference-payment-backend.onrender.com/api';
+                      html.window.open(
+                        '$backendBase/attendee-receipt/$txnid',
+                        '_blank',
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildReceiptButton(
+                    label: 'Download Receipt',
+                    icon: Icons.download_rounded,
+                    color: Colors.teal,
+                    onTap: () {
+                      final host = html.window.location.hostname ?? '';
+                      final backendBase = (host == 'localhost' || host == '127.0.0.1')
+                          ? 'http://localhost:3001/api'
+                          : 'https://ai-conference-payment-backend.onrender.com/api';
+                      html.window.open(
+                        '$backendBase/attendee-receipt/download/$txnid',
+                        '_blank',
+                      );
+                    },
+                  ),
                 ],
 
                 const SizedBox(height: 32),
@@ -224,6 +272,36 @@ class PaymentResultScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildReceiptButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18, color: color),
+        label: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: color.withOpacity(0.4)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
     );
   }
 }

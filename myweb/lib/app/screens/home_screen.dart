@@ -40,6 +40,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    // ─── DEBUG: Log current user info ───
+    final currentUser = AuthService.currentUser;
+    debugPrint('=== [HOME_SCREEN] BUILD ===');
+    debugPrint('[AUTH] currentUser is null: ${currentUser == null}');
+    debugPrint('[AUTH] UID: ${currentUser?.uid}');
+    debugPrint('[AUTH] Email: ${currentUser?.email}');
+    debugPrint('[AUTH] isAnonymous: ${currentUser?.isAnonymous}');
+    debugPrint('[AUTH] isEmailVerified: ${currentUser?.emailVerified}');
+    debugPrint('=== [HOME_SCREEN] END AUTH INFO ===');
     // Custom Indigo/Violet Dark Theme
     const primaryIndigo = Color(0xFF6200EA);
     const accentViolet = Color(0xFF7C4DFF);
@@ -403,39 +412,70 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   /// and My Account sections. Only visible when relevant.
   Widget _buildPaymentSection(Color accentViolet) {
     final uid = AuthService.currentUser?.uid;
-    if (uid == null) return const SizedBox.shrink();
+    debugPrint('\n=== [PAYMENT_SECTION] START ===');
+    debugPrint('[PAYMENT_SECTION] Current user UID: $uid');
+
+    if (uid == null) {
+      debugPrint('[PAYMENT_SECTION] ❌ UID is null — user not logged in. Payment section HIDDEN.');
+      debugPrint('=== [PAYMENT_SECTION] END ===\n');
+      return const SizedBox.shrink();
+    }
+
+    debugPrint('[PAYMENT_SECTION] ✅ UID found. Fetching payment status from API...');
+    debugPrint('[PAYMENT_SECTION] API URL will be: ${PaymentService.debugBaseUrl}/payment-status/$uid');
 
     return FutureBuilder<Map<String, dynamic>>(
       future: PaymentService.getPaymentStatus(uid),
       builder: (context, snapshot) {
         // Debug logging
+        debugPrint('\n--- [PAYMENT_SECTION] FutureBuilder rebuild ---');
         debugPrint('[PAYMENT] Connection state: ${snapshot.connectionState}');
         debugPrint('[PAYMENT] Has data: ${snapshot.hasData}');
         debugPrint('[PAYMENT] Has error: ${snapshot.hasError}');
         if (snapshot.hasError) {
-          debugPrint('[PAYMENT] Error: ${snapshot.error}');
+          debugPrint('[PAYMENT] ❌ Error: ${snapshot.error}');
+          debugPrint('[PAYMENT] ❌ Stack trace: ${snapshot.stackTrace}');
         }
         if (snapshot.hasData) {
-          debugPrint('[PAYMENT] Data: ${snapshot.data}');
+          debugPrint('[PAYMENT] ✅ Full API Response Data:');
+          snapshot.data!.forEach((key, value) {
+            debugPrint('[PAYMENT]   $key: $value (${value.runtimeType})');
+          });
         }
 
         // While loading, show nothing to avoid layout jumps
-        if (!snapshot.hasData) return const SizedBox.shrink();
+        if (!snapshot.hasData) {
+          debugPrint('[PAYMENT] ⏳ No data yet (loading or error). Payment section HIDDEN.');
+          return const SizedBox.shrink();
+        }
 
         final data = snapshot.data!;
         if (data['success'] != true) {
-          debugPrint('[PAYMENT] API returned success=false: ${data['error']}');
+          debugPrint('[PAYMENT] ❌ API returned success=false. Payment button NOT rendered.');
+          debugPrint('[PAYMENT] ❌ Error from API: ${data['error']}');
+          debugPrint('[PAYMENT] ❌ Full response: $data');
           return const SizedBox.shrink();
         }
 
         final hasApprovedPaper = data['hasApprovedPaper'] == true;
         final paymentStatus = data['paymentStatus'] as String?;
-        debugPrint('[PAYMENT] hasApprovedPaper=$hasApprovedPaper, paymentStatus=$paymentStatus');
+        debugPrint('[PAYMENT] hasApprovedPaper=$hasApprovedPaper (raw value: ${data['hasApprovedPaper']}, type: ${data['hasApprovedPaper'].runtimeType})');
+        debugPrint('[PAYMENT] paymentStatus=$paymentStatus (raw value: ${data['paymentStatus']}, type: ${data['paymentStatus']?.runtimeType})');
 
         // Only show section if user has an approved full paper
-        if (!hasApprovedPaper) return const SizedBox.shrink();
+        if (!hasApprovedPaper) {
+          debugPrint('[PAYMENT] ❌ hasApprovedPaper is FALSE. Payment button NOT rendered.');
+          debugPrint('[PAYMENT] ❌ Reason: The user does not have an approved full paper.');
+          return const SizedBox.shrink();
+        }
 
         final isPaid = paymentStatus == 'paid';
+        debugPrint('[PAYMENT] ✅ User HAS an approved paper. isPaid=$isPaid');
+        if (isPaid) {
+          debugPrint('[PAYMENT] 💚 Showing "Payment Completed" card + receipt options.');
+        } else {
+          debugPrint('[PAYMENT] 🟡 Showing "Pay Conference Fee" button. paymentStatus="$paymentStatus"');
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

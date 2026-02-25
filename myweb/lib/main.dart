@@ -6,6 +6,7 @@ import 'admin/admin_login_screen.dart';
 import 'app/screens/welcome_screen.dart';
 import 'app/screens/home_screen.dart';
 import 'app/screens/payment_result_screen.dart';
+import 'app/screens/attendee_registration_screen.dart';
 import 'services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
@@ -30,19 +31,27 @@ class ConferenceApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // ✅ Student app is DEFAULT (web + mobile)
-      home: const AuthWrapper(),
+      // Use initialRoute instead of home so Flutter web respects the URL hash
+      initialRoute: '/',
 
-      // ✅ Routes
+      // ✅ All routes handled here — public routes bypass auth
       onGenerateRoute: (settings) {
         final uri = Uri.parse(settings.name ?? '');
 
-        // Payment result route (Easebuzz callback redirect)
+        // ─── PUBLIC: Attendee registration (no auth required) ───
+        if (uri.path == '/attendee-registration') {
+          return MaterialPageRoute(
+            builder: (_) => const AttendeeRegistrationScreen(),
+          );
+        }
+
+        // ─── PUBLIC: Payment result (Easebuzz callback redirect) ───
         if (uri.path == '/payment-result') {
           final status = uri.queryParameters['status'] ?? 'failed';
           final txnid = uri.queryParameters['txnid'];
           final amount = uri.queryParameters['amount'];
           final reason = uri.queryParameters['reason'];
+          final type = uri.queryParameters['type']; // 'attendee' or null
 
           return MaterialPageRoute(
             builder: (_) => PaymentResultScreen(
@@ -50,6 +59,7 @@ class ConferenceApp extends StatelessWidget {
               txnid: txnid,
               amount: amount,
               reason: reason,
+              paymentType: type,
             ),
           );
         }
@@ -61,7 +71,10 @@ class ConferenceApp extends StatelessWidget {
           );
         }
 
-        return null;
+        // Default: auth-protected dashboard
+        return MaterialPageRoute(
+          builder: (_) => const AuthWrapper(),
+        );
       },
     );
   }
