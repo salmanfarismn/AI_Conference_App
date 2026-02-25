@@ -148,6 +148,11 @@ async function createPayment(req, res) {
         });
 
         // 7. Prepare Easebuzz initiate API call
+        // Use BACKEND_URL env var for reliable callback URLs in production;
+        // fall back to auto-detection from request headers.
+        const backendBaseUrl = process.env.BACKEND_URL
+            || `${req.protocol}://${req.get("host")}`;
+
         const initiatePayload = {
             key,
             txnid,
@@ -156,8 +161,8 @@ async function createPayment(req, res) {
             firstname,
             email,
             phone,
-            surl: `${req.protocol}://${req.get("host")}/api/payment-success`,
-            furl: `${req.protocol}://${req.get("host")}/api/payment-failure`,
+            surl: `${backendBaseUrl}/api/payment-success`,
+            furl: `${backendBaseUrl}/api/payment-failure`,
             hash,
         };
 
@@ -172,7 +177,13 @@ async function createPayment(req, res) {
             },
         });
 
-        if (easebuzzResponse.data && easebuzzResponse.data.status === 1) {
+        // Safely parse response (may be string or object depending on Easebuzz Content-Type)
+        let responseData = easebuzzResponse.data;
+        if (typeof responseData === 'string') {
+            try { responseData = JSON.parse(responseData); } catch (e) { /* not JSON */ }
+        }
+
+        if (responseData && responseData.status == 1) {
             // Store pending transaction in the submission doc for verification later
             await fullPaperDoc.ref.update({
                 paymentStatus: "pending",
@@ -182,7 +193,7 @@ async function createPayment(req, res) {
                 paymentFrontendUrl: frontendUrl,
             });
 
-            const accessKey = easebuzzResponse.data.data;
+            const accessKey = responseData.data;
             const paymentUrl = `${getEasebuzzBaseUrl()}/pay/${accessKey}`;
 
             return res.status(200).json({
@@ -194,11 +205,11 @@ async function createPayment(req, res) {
                 role,
             });
         } else {
-            console.error("Easebuzz initiate failed:", easebuzzResponse.data);
+            console.error("Easebuzz initiate failed:", responseData);
             return res.status(500).json({
                 success: false,
                 error: "Failed to initiate payment with gateway.",
-                details: easebuzzResponse.data?.message || "Unknown error",
+                details: responseData?.message || "Unknown error",
             });
         }
     } catch (error) {

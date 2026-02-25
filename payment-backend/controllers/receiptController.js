@@ -113,7 +113,7 @@ function generateReceiptPDF(res, { userData, submission, receiptNumber, disposit
         { label: "Email Address", value: userData.email || "N/A" },
         { label: "Category", value: formatRole(userData.role) },
         { label: "Participation Type", value: "Offline" },
-        { label: "Amount Paid", value: `₹${submission.paymentAmount || "0"}`, isAmount: true },
+        { label: "Amount Paid", value: `Rs. ${submission.paymentAmount || "0"}`, isAmount: true },
     ];
 
     // Table header
@@ -249,16 +249,19 @@ async function findPaidSubmission(uid) {
     const userData = userDoc.data();
 
     // 2. Find approved + paid full paper
+    // Fetch all user submissions and filter in code to avoid case-sensitivity
+    // issues with Firestore queries (matches paymentController pattern)
     const submissionsSnap = await db
         .collection("submissions")
         .where("uid", "==", uid)
-        .where("submissionType", "==", "fullpaper")
         .get();
 
     const paidDoc = submissionsSnap.docs.find((doc) => {
         const d = doc.data();
-        const isApproved = d.status === "accepted" || d.status === "accepted_with_revision";
-        return isApproved && d.paymentStatus === "paid";
+        const type = String(d.submissionType || "").toLowerCase().trim();
+        const status = String(d.status || "").toLowerCase().trim();
+        const isApproved = status === "accepted" || status === "accepted_with_revision";
+        return type === "fullpaper" && isApproved && d.paymentStatus === "paid";
     });
 
     if (!paidDoc) return null;
