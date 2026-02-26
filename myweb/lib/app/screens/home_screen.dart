@@ -12,6 +12,7 @@ import 'submit_paper_screen.dart';
 import 'full_paper_submission_screen.dart';
 import 'payment_confirmation_screen.dart';
 import '../widgets/glass_navbar.dart';
+import '../widgets/verification_documents_section.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -146,6 +147,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 
                                 // ─── Payment Section ───
                                 _buildPaymentSection(accentViolet),
+
+                                // ─── Verification Documents Section ───
+                                _buildVerificationSection(accentViolet),
 
                                 const SizedBox(height: 32),
                                 Text(
@@ -560,6 +564,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
           ],
         );
+      },
+    );
+  }
+
+  /// Builds the verification documents section.
+  /// Only visible when the user has paid (paymentStatus == "paid").
+  Widget _buildVerificationSection(Color accentViolet) {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: PaymentService.getPaymentStatus(uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+
+        final data = snapshot.data!;
+        if (data['success'] != true) return const SizedBox.shrink();
+
+        final paymentStatus = data['paymentStatus'] as String?;
+        final isPaid = paymentStatus == 'paid';
+
+        // Only show verification section after payment is completed
+        if (!isPaid) return const SizedBox.shrink();
+
+        return VerificationDocumentsSection(accentColor: accentViolet);
       },
     );
   }

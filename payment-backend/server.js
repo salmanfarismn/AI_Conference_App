@@ -25,6 +25,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const receiptRoutes = require("./routes/receiptRoutes");
 const attendeeRoutes = require("./routes/attendeeRoutes");
 const attendeeReceiptRoutes = require("./routes/attendeeReceiptRoutes");
+const verificationRoutes = require("./routes/verificationRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -68,6 +69,13 @@ const corsMiddleware = cors({
         if (process.env.EASEBUZZ_ENV !== "live") {
             return callback(null, true);
         }
+        // In live mode, still allow any localhost origin (for local testing)
+        try {
+            const originUrl = new URL(origin);
+            if (originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1") {
+                return callback(null, true);
+            }
+        } catch (_) { /* invalid URL, fall through to block */ }
         return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
@@ -103,6 +111,7 @@ app.use("/api", paymentRoutes);
 app.use("/api", receiptRoutes);
 app.use("/api", attendeeRoutes);
 app.use("/api", attendeeReceiptRoutes);
+app.use("/api", verificationRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

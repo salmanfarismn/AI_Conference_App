@@ -12,6 +12,7 @@ import '../models/submission.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'admin_login_screen.dart';
+import 'admin_verification_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -90,6 +91,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             leading: const Icon(Icons.people),
             title: const Text('Users (later)'),
             onTap: () {},
+          ),
+          ListTile(
+            leading: const Icon(Icons.verified_user),
+            title: const Text('Document Verification'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AdminVerificationScreen(),
+                ),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.settings),
