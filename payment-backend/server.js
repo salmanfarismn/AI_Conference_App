@@ -42,26 +42,49 @@ const allowedOrigins = [
     "http://localhost:5000",
     "http://localhost:8080",
     "http://localhost:3000",
-    // Add your production Flutter web URL here
+    "https://m-app-754d5.web.app",
+    "https://m-app-754d5.firebaseapp.com",
 ];
 
-app.use(
-    cors({
-        origin: function (origin, callback) {
-            // Allow requests with no origin (server-to-server, curl, etc.)
-            if (!origin) return callback(null, true);
-            if (allowedOrigins.indexOf(origin) !== -1) {
-                return callback(null, true);
-            }
-            // In development, allow all origins
-            if (process.env.EASEBUZZ_ENV !== "live") {
-                return callback(null, true);
-            }
-            return callback(new Error("Not allowed by CORS"));
-        },
-        credentials: true,
-    })
-);
+// Paths that receive callbacks from Easebuzz (server-to-server).
+// These MUST bypass CORS origin checks since the payment gateway
+// posts to them directly.
+const easebuzzCallbackPaths = [
+    "/api/payment-success",
+    "/api/payment-failure",
+    "/api/attendee-payment-success",
+    "/api/attendee-payment-failure",
+];
+
+// Configure the CORS middleware instance
+const corsMiddleware = cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (server-to-server, curl, etc.)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            return callback(null, true);
+        }
+        // In development, allow all origins
+        if (process.env.EASEBUZZ_ENV !== "live") {
+            return callback(null, true);
+        }
+        return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+});
+
+// Apply CORS selectively: skip it entirely for Easebuzz callback routes
+// because the payment gateway POSTs directly to these URLs and may send
+// an origin header that isn't in our allowedOrigins list.
+app.use((req, res, next) => {
+    if (easebuzzCallbackPaths.includes(req.path)) {
+        // Allow the callback through without CORS checks
+        res.header("Access-Control-Allow-Origin", "*");
+        return next();
+    }
+    // All other routes go through normal CORS
+    corsMiddleware(req, res, next);
+});
 
 // Parse URL-encoded bodies (Easebuzz callbacks come as form data)
 app.use(express.urlencoded({ extended: true }));
@@ -94,10 +117,17 @@ app.get("/api/health", (req, res) => {
 // ──────────────── Error Handler ────────────────
 
 app.use((err, req, res, next) => {
-    console.error("Unhandled error:", err);
+    console.error("Unhandled error:", {
+        message: err.message,
+        stack: err.stack,
+        path: req.path,
+        method: req.method,
+        origin: req.headers?.origin,
+    });
     res.status(500).json({
         success: false,
         error: "Internal server error",
+        path: req.path,
     });
 });
 
