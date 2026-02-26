@@ -26,6 +26,7 @@ const receiptRoutes = require("./routes/receiptRoutes");
 const attendeeRoutes = require("./routes/attendeeRoutes");
 const attendeeReceiptRoutes = require("./routes/attendeeReceiptRoutes");
 const verificationRoutes = require("./routes/verificationRoutes");
+const revisionRoutes = require("./routes/revisionRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -112,6 +113,7 @@ app.use("/api", receiptRoutes);
 app.use("/api", attendeeRoutes);
 app.use("/api", attendeeReceiptRoutes);
 app.use("/api", verificationRoutes);
+app.use("/api", revisionRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

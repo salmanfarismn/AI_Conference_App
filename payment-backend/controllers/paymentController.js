@@ -94,12 +94,13 @@ async function createPayment(req, res) {
         }
 
         // Filter for specific type and status in code
+        // Include pending_review since papers in revision workflow should still be eligible
         const approvedDocs = submissionsSnap.docs.filter((doc) => {
             const d = doc.data();
             const type = String(d.submissionType || "").toLowerCase().trim();
             const status = String(d.status || "").toLowerCase().trim();
 
-            return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision");
+            return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision" || status === "pending_review");
         });
 
         if (approvedDocs.length === 0) {
@@ -396,12 +397,13 @@ async function getPaymentStatus(req, res) {
             .where("uid", "==", uid)
             .get();
 
+        // Include pending_review since papers in revision workflow should still be eligible
         const approvedDocs = submissionsSnap.docs.filter((doc) => {
             const d = doc.data();
             const type = String(d.submissionType || "").toLowerCase().trim();
             const status = String(d.status || "").toLowerCase().trim();
 
-            return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision");
+            return type === "fullpaper" && (status === "accepted" || status === "accepted_with_revision" || status === "pending_review");
         });
 
         if (approvedDocs.length === 0) {

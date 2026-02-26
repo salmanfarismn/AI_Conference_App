@@ -160,6 +160,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             DropdownMenuItem(value: 'all', child: Text('All Status')),
                             DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
                             DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
+                            DropdownMenuItem(value: 'pending_review', child: Text('Pending Review (Revised)')),
                             DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                           ],
                           onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
@@ -198,6 +199,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               DropdownMenuItem(value: 'all', child: Text('All Status')),
                               DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
                               DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
+                              DropdownMenuItem(value: 'pending_review', child: Text('Pending Review (Revised)')),
                               DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                             ],
                             onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
@@ -342,88 +344,241 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _showReviewDialog(Submission submission) async {
     String selectedStatus = _mapToValidStatus(submission.status);
     final commentsController = TextEditingController(text: submission.reviewComments ?? '');
+    bool showVersionHistory = false;
 
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('Review: ${submission.referenceNumber}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  submission.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 16),
-                
-                // Authors info
-                if (submission.authors.isNotEmpty) ...[
-                  const Text('Authors:', style: TextStyle(fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 4),
-                  ...submission.authors.map((a) => Padding(
-                    padding: const EdgeInsets.only(left: 8, bottom: 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${a.isMainAuthor ? "• " : "  "}${a.name}${a.isMainAuthor ? " (Main)" : ""}',
-                          style: TextStyle(
-                            fontWeight: a.isMainAuthor ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                        ),
-                        if (a.affiliation.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Text(
-                              a.affiliation,
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                            ),
-                          ),
-                        if (a.email != null && a.email!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Text(
-                              a.email!,
-                              style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
-                            ),
-                          ),
-                      ],
+          title: Row(
+            children: [
+              Expanded(child: Text('Review: ${submission.referenceNumber}')),
+              // Show version badge for full papers
+              if (submission.submissionType == 'fullpaper' && submission.currentVersion > 0)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.indigo.shade200),
+                  ),
+                  child: Text(
+                    'v${submission.currentVersion}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo.shade700,
                     ),
-                  )),
+                  ),
+                ),
+            ],
+          ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width > 600 ? 500 : double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    submission.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   const SizedBox(height: 16),
-                ],
-
-                // Status dropdown
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  decoration: const InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                    DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
-                    DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                  
+                  // Authors info
+                  if (submission.authors.isNotEmpty) ...[
+                    const Text('Authors:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    ...submission.authors.map((a) => Padding(
+                      padding: const EdgeInsets.only(left: 8, bottom: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${a.isMainAuthor ? "• " : "  "}${a.name}${a.isMainAuthor ? " (Main)" : ""}',
+                            style: TextStyle(
+                              fontWeight: a.isMainAuthor ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                          if (a.affiliation.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 16),
+                              child: Text(
+                                a.affiliation,
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                            ),
+                          if (a.email != null && a.email!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 16),
+                              child: Text(
+                                a.email!,
+                                style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
+                              ),
+                            ),
+                        ],
+                      ),
+                    )),
+                    const SizedBox(height: 16),
                   ],
-                  onChanged: (v) => setDialogState(() => selectedStatus = v ?? 'pending'),
-                ),
-                const SizedBox(height: 16),
 
-                // Review comments
-                TextField(
-                  controller: commentsController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Review Comments',
-                    hintText: 'Add feedback for the author...',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
+                  // ──────────── VERSION HISTORY (for revised papers) ────────────
+                  if (submission.hasRevisions && submission.submissionType == 'fullpaper') ...[
+                    InkWell(
+                      onTap: () => setDialogState(() => showVersionHistory = !showVersionHistory),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.indigo.shade100),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.history_rounded, size: 18, color: Colors.indigo.shade600),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Version History (${submission.versions.length} previous)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.indigo.shade700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              showVersionHistory ? Icons.expand_less : Icons.expand_more,
+                              color: Colors.indigo.shade600,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (showVersionHistory) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ...submission.versions.asMap().entries.map((entry) {
+                              final v = entry.value;
+                              final isLast = entry.key == submission.versions.length - 1;
+                              return _buildAdminVersionItem(v, isLast);
+                            }),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Current PDF link
+                  if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.picture_as_pdf, size: 18, color: Colors.red.shade600),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              submission.currentVersion > 1
+                                  ? 'Current Version (v${submission.currentVersion}) PDF'
+                                  : 'Submitted PDF',
+                              style: TextStyle(fontSize: 13, color: Colors.blue.shade700),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              await launchUrlString(submission.pdfUrl!, webOnlyWindowName: '_blank');
+                            },
+                            child: const Text('View', style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Status dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                      DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
+                      DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedStatus = v ?? 'pending'),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+
+                  // Review comments
+                  TextField(
+                    controller: commentsController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      labelText: 'Review Comments',
+                      hintText: selectedStatus == 'accepted_with_revision'
+                          ? 'Provide detailed feedback for the author to address in their revision...'
+                          : 'Add feedback for the author...',
+                      border: const OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+
+                  // Warning for accepted_with_revision
+                  if (selectedStatus == 'accepted_with_revision') ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'The author will be notified to submit a revised paper. '
+                              'Please provide clear feedback about what needs to be changed.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange.shade800,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -468,6 +623,142 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     );
   }
+
+  /// Build a single version item for the admin review dialog's version history
+  Widget _buildAdminVersionItem(PaperVersion version, bool isLast) {
+    Color statusColor;
+    switch (version.status) {
+      case 'accepted':
+        statusColor = Colors.green;
+        break;
+      case 'accepted_with_revision':
+        statusColor = Colors.orange;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        break;
+      case 'pending_review':
+        statusColor = Colors.blue;
+        break;
+      default:
+        statusColor = Colors.grey;
+    }
+
+    String statusLabel;
+    switch (version.status) {
+      case 'accepted_with_revision':
+        statusLabel = 'REVISION REQUESTED';
+        break;
+      case 'pending_review':
+        statusLabel = 'PENDING REVIEW';
+        break;
+      default:
+        statusLabel = version.status.toUpperCase();
+    }
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 28,
+            child: Column(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  margin: const EdgeInsets.only(top: 2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: statusColor.withOpacity(0.2),
+                    border: Border.all(color: statusColor, width: 2),
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 1.5,
+                      color: Colors.grey.shade300,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Version ${version.version}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (version.submittedAt != null)
+                    Text(
+                      DateFormat.yMMMd().add_Hm().format(version.submittedAt!),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    ),
+                  if (version.adminComment.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      'Comment: ${version.adminComment}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.amber.shade800,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (version.fileUrl.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    InkWell(
+                      onTap: () async {
+                        await launchUrlString(version.fileUrl, webOnlyWindowName: '_blank');
+                      },
+                      child: Text(
+                        'View PDF →',
+                        style: TextStyle(
+                          color: Colors.blue.shade600,
+                          fontSize: 11,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ===================== SUBMISSION CARD =====================
@@ -492,7 +783,7 @@ class _SubmissionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title and type badge
+            // Title, type badge, and version badge
             Row(
               children: [
                 Expanded(
@@ -501,6 +792,26 @@ class _SubmissionCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
+                // Version badge (for revised papers)
+                if (submission.submissionType == 'fullpaper' && submission.currentVersion > 1) ...[
+                  Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.indigo.shade200),
+                    ),
+                    child: Text(
+                      'v${submission.currentVersion}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo.shade700,
+                      ),
+                    ),
+                  ),
+                ],
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
@@ -534,16 +845,49 @@ class _SubmissionCard extends StatelessWidget {
             
             const SizedBox(height: 4),
             
-            // Status chip
-            Chip(
-              label: Text(_statusLabel(submission.status)),
-              backgroundColor: Color.fromRGBO(
-                _statusColor(submission.status).red,
-                _statusColor(submission.status).green,
-                _statusColor(submission.status).blue,
-                0.15,
-              ),
-              labelStyle: TextStyle(color: _statusColor(submission.status)),
+            // Status chip + revision count
+            Row(
+              children: [
+                Chip(
+                  label: Text(_statusLabel(submission.status)),
+                  backgroundColor: Color.fromRGBO(
+                    _statusColor(submission.status).red,
+                    _statusColor(submission.status).green,
+                    _statusColor(submission.status).blue,
+                    0.15,
+                  ),
+                  labelStyle: TextStyle(color: _statusColor(submission.status)),
+                ),
+                // Revision count indicator
+                if (submission.hasRevisions && submission.submissionType == 'fullpaper') ...[
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    message: '${submission.versions.length} revision(s)',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.history, size: 14, color: Colors.indigo.shade600),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${submission.versions.length}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             
             if (submission.createdAt != null)
@@ -762,7 +1106,9 @@ class _SubmissionCard extends StatelessWidget {
       case 'accepted':
         return 'ACCEPTED';
       case 'accepted_with_revision':
-        return 'ACCEPTED WITH REVISION';
+        return 'REVISION REQUIRED';
+      case 'pending_review':
+        return 'PENDING REVIEW';
       case 'rejected':
         return 'REJECTED';
       default:
@@ -776,6 +1122,8 @@ class _SubmissionCard extends StatelessWidget {
         return Colors.green;
       case 'accepted_with_revision':
         return Colors.orange;
+      case 'pending_review':
+        return Colors.blue;
       case 'rejected':
         return Colors.red;
       default:

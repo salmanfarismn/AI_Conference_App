@@ -38,11 +38,20 @@ service cloud.firestore {
       // Allow all authenticated users to read submissions (for admin panel access)
       allow read: if isSignedIn();
       
-      // Users can update their own submissions (except status/review fields)
+      // Users can update their own submissions:
+      //   1. Normal updates (except status/review fields)
+      //   2. Revision resubmission: ONLY when transitioning from
+      //      accepted_with_revision → pending_review (clears review fields)
       // Admins can update any submission (including status/review)
       allow update: if isSignedIn() && (
+        // Case 1: Owner updating non-review fields
         (resource.data.uid == request.auth.uid && 
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'reviewedBy', 'reviewedAt', 'reviewComments'])) ||
+        // Case 2: Owner resubmitting revision (accepted_with_revision → pending_review)
+        (resource.data.uid == request.auth.uid &&
+         resource.data.status == 'accepted_with_revision' &&
+         request.resource.data.status == 'pending_review') ||
+        // Case 3: Admin can update anything
         isAdmin()
       );
       

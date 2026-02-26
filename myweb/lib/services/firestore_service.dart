@@ -171,6 +171,8 @@ class FirestoreService {
       'pdfUrl': pdfUrl,
       'status': 'submitted',
       'submissionType': 'fullpaper',
+      'currentVersion': 1,
+      'versions': [],
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -205,5 +207,68 @@ class FirestoreService {
     final doc = await _submissions.doc(docId).get();
     if (!doc.exists || doc.data() == null) return null;
     return Submission.fromDoc(doc.id, doc.data()!);
+  }
+
+  // ──────────────── Revision Workflow (NEW) ────────────────
+
+  /// Resubmit a revised paper.
+  /// Archives current version, uploads new PDF, increments version, resets status.
+  /// This is the client-side Firestore update.
+  /// For backend-mediated flow, use the /api/paper/resubmit/:paperId endpoint instead.
+  static Future<void> resubmitPaperRevision({
+    required String docId,
+    required String newPdfUrl,
+  }) async {
+    final doc = await _submissions.doc(docId).get();
+    if (!doc.exists || doc.data() == null) {
+      throw Exception('Submission not found');
+    }
+
+    final data = doc.data()!;
+    
+    // Validate status
+    if (data['status'] != 'accepted_with_revision') {
+      throw Exception('Paper cannot be revised. Current status: ${data['status']}');
+    }
+
+    final currentVersion = (data['currentVersion'] as num?)?.toInt() ?? 1;
+    final newVersion = currentVersion + 1;
+    final existingVersions = (data['versions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+    // Archive current version
+    final archivedVersion = <String, dynamic>{
+      'version': currentVersion,
+      'fileUrl': data['pdfUrl'] ?? '',
+      'submittedAt': data['updatedAt'] ?? data['createdAt'] ?? FieldValue.serverTimestamp(),
+      'status': data['status'] ?? '',
+      'adminComment': data['reviewComments'] ?? '',
+      'reviewedBy': data['reviewedBy'] ?? '',
+      'reviewedAt': data['reviewedAt'],
+    };
+
+    final updatedVersions = [...existingVersions, archivedVersion];
+
+    // Update with new version
+    await _submissions.doc(docId).update({
+      'pdfUrl': newPdfUrl,
+      'status': 'pending_review',
+      'currentVersion': newVersion,
+      'versions': updatedVersions,
+      'reviewComments': '',
+      'reviewedBy': FieldValue.delete(),
+      'reviewedAt': FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastRevisionAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Get submissions that need revision for a specific user.
+  static Future<List<Submission>> getRevisionRequiredSubmissions(String uid) async {
+    final snap = await _submissions
+        .where('uid', isEqualTo: uid)
+        .where('submissionType', isEqualTo: 'fullpaper')
+        .where('status', isEqualTo: 'accepted_with_revision')
+        .get();
+    return snap.docs.map((d) => Submission.fromDoc(d.id, d.data())).toList();
   }
 }

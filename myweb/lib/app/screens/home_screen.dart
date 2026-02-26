@@ -569,7 +569,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// Builds the verification documents section.
-  /// Only visible when the user has paid (paymentStatus == "paid").
+  /// Visible when the user has an approved/in-progress full paper.
   Widget _buildVerificationSection(Color accentViolet) {
     final uid = AuthService.currentUser?.uid;
     if (uid == null) return const SizedBox.shrink();
@@ -582,11 +582,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         final data = snapshot.data!;
         if (data['success'] != true) return const SizedBox.shrink();
 
-        final paymentStatus = data['paymentStatus'] as String?;
-        final isPaid = paymentStatus == 'paid';
+        final hasApprovedPaper = data['hasApprovedPaper'] == true;
 
-        // Only show verification section after payment is completed
-        if (!isPaid) return const SizedBox.shrink();
+        // Show verification section when user has an approved/in-progress paper
+        if (!hasApprovedPaper) return const SizedBox.shrink();
 
         return VerificationDocumentsSection(accentColor: accentViolet);
       },

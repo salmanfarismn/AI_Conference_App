@@ -1,7 +1,86 @@
 import 'author.dart';
 
+/// A single version entry in the paper's revision history.
+class PaperVersion {
+  final int version;
+  final String fileUrl;
+  final DateTime? submittedAt;
+  final String status;
+  final String adminComment;
+  final String? reviewedBy;
+  final DateTime? reviewedAt;
+  final bool isCurrent;
+
+  PaperVersion({
+    required this.version,
+    required this.fileUrl,
+    this.submittedAt,
+    required this.status,
+    this.adminComment = '',
+    this.reviewedBy,
+    this.reviewedAt,
+    this.isCurrent = false,
+  });
+
+  factory PaperVersion.fromMap(Map<String, dynamic> map) {
+    // Parse submittedAt
+    DateTime? submittedAt;
+    final ts = map['submittedAt'];
+    if (ts is DateTime) {
+      submittedAt = ts;
+    } else if (ts != null) {
+      try {
+        submittedAt = (ts as dynamic).toDate();
+      } catch (_) {
+        // Try parsing ISO string
+        try {
+          submittedAt = DateTime.parse(ts.toString());
+        } catch (_) {}
+      }
+    }
+
+    // Parse reviewedAt
+    DateTime? reviewedAt;
+    final rts = map['reviewedAt'];
+    if (rts is DateTime) {
+      reviewedAt = rts;
+    } else if (rts != null) {
+      try {
+        reviewedAt = (rts as dynamic).toDate();
+      } catch (_) {
+        try {
+          reviewedAt = DateTime.parse(rts.toString());
+        } catch (_) {}
+      }
+    }
+
+    return PaperVersion(
+      version: (map['version'] as num?)?.toInt() ?? 1,
+      fileUrl: map['fileUrl'] as String? ?? '',
+      submittedAt: submittedAt,
+      status: map['status'] as String? ?? '',
+      adminComment: map['adminComment'] as String? ?? '',
+      reviewedBy: map['reviewedBy'] as String?,
+      reviewedAt: reviewedAt,
+      isCurrent: map['isCurrent'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'version': version,
+        'fileUrl': fileUrl,
+        'submittedAt': submittedAt?.toIso8601String(),
+        'status': status,
+        'adminComment': adminComment,
+        'reviewedBy': reviewedBy,
+        'reviewedAt': reviewedAt?.toIso8601String(),
+        'isCurrent': isCurrent,
+      };
+}
+
 /// Submission stored in Firestore `submissions` collection.
 /// Extended to support full paper submissions with multiple authors and review workflow.
+/// Now includes revision history with version tracking.
 class Submission {
   final String id;
   final String uid;
@@ -13,7 +92,7 @@ class Submission {
   final String? docBase64;
   final String? docName;
   final String? extractedText;
-  final String status; // 'submitted' | 'pending' | 'under_review' | 'accepted' | 'rejected' | 'revision_requested'
+  final String status; // 'submitted' | 'pending' | 'under_review' | 'accepted' | 'rejected' | 'accepted_with_revision' | 'pending_review'
   final String submissionType; // 'abstract' | 'fullpaper'
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -22,6 +101,11 @@ class Submission {
   final String? reviewComments;
   final String? reviewedBy; // Admin uid who reviewed
   final DateTime? reviewedAt;
+
+  // Revision fields
+  final int currentVersion;
+  final List<PaperVersion> versions;
+  final DateTime? lastRevisionAt;
 
   Submission({
     required this.id,
@@ -41,6 +125,9 @@ class Submission {
     this.reviewComments,
     this.reviewedBy,
     this.reviewedAt,
+    this.currentVersion = 1,
+    this.versions = const [],
+    this.lastRevisionAt,
   });
 
   factory Submission.fromDoc(String id, Map<String, dynamic> data) {
@@ -77,11 +164,30 @@ class Submission {
       } catch (_) {}
     }
 
+    // Parse lastRevisionAt
+    Object? revisionTs = data['lastRevisionAt'];
+    DateTime? lastRevisionAt;
+    if (revisionTs is DateTime) {
+      lastRevisionAt = revisionTs;
+    } else if (revisionTs != null) {
+      try {
+        lastRevisionAt = (revisionTs as dynamic).toDate();
+      } catch (_) {}
+    }
+
     // Parse authors list
     List<Author> authors = [];
     if (data['authors'] != null && data['authors'] is List) {
       authors = (data['authors'] as List)
           .map((a) => Author.fromMap(a as Map<String, dynamic>))
+          .toList();
+    }
+
+    // Parse versions list
+    List<PaperVersion> versions = [];
+    if (data['versions'] != null && data['versions'] is List) {
+      versions = (data['versions'] as List)
+          .map((v) => PaperVersion.fromMap(v as Map<String, dynamic>))
           .toList();
     }
 
@@ -103,8 +209,20 @@ class Submission {
       reviewComments: data['reviewComments'] as String?,
       reviewedBy: data['reviewedBy'] as String?,
       reviewedAt: reviewedAt,
+      currentVersion: (data['currentVersion'] as num?)?.toInt() ?? 1,
+      versions: versions,
+      lastRevisionAt: lastRevisionAt,
     );
   }
+
+  /// Whether this submission requires revision
+  bool get needsRevision => status == 'accepted_with_revision';
+
+  /// Whether the paper is currently under review after a revision
+  bool get isPendingReview => status == 'pending_review';
+
+  /// Whether this is a revised submission (has version history)
+  bool get hasRevisions => versions.isNotEmpty;
 
   /// Get display string for all authors
   String get authorsDisplay {

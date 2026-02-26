@@ -10,6 +10,7 @@ import '../../services/firestore_service.dart';
 import '../../services/cloudinary_service.dart';
 import '../widgets/parallax_background.dart';
 import 'home_screen.dart';
+import 'paper_revision_screen.dart';
 
 class FullPaperSubmissionScreen extends StatefulWidget {
   const FullPaperSubmissionScreen({super.key});
@@ -37,6 +38,11 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
   bool _isEligible = false;
   String? _acceptedAbstractRef;
   Submission? _acceptedAbstract;
+
+  // Full paper status tracking
+  bool _hasExistingFullPaper = false;
+  String? _existingFullPaperStatus; // 'accepted', 'rejected', 'accepted_with_revision', etc.
+  Submission? _existingFullPaper;
   late AnimationController _animationController;
 
   @override
@@ -68,11 +74,42 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
          _prefillForm(acceptedAbstract);
       }
 
+      // Check if user already has a full paper submission
+      Submission? existingFullPaper;
+      if (acceptedAbstract != null) {
+        existingFullPaper = await _findExistingFullPaper(uid);
+      }
+
+      if (!mounted) return;
+
+      final hasExisting = existingFullPaper != null;
+      final existingStatus = existingFullPaper?.status;
+
+      // Determine eligibility:
+      // - No accepted abstract → not eligible
+      // - Has full paper with accepted/rejected → disable submission
+      // - Has full paper with accepted_with_revision → redirect to revision screen
+      // - Has full paper with pending_review/submitted → disable (already submitted)
+      // - No existing full paper → eligible
+      bool isEligible = acceptedAbstract != null;
+      if (hasExisting) {
+        // If accepted_with_revision, we'll redirect to PaperRevisionScreen
+        // Otherwise, disable new submission
+        if (existingStatus == 'accepted_with_revision') {
+          isEligible = false; // Will redirect to revision screen
+        } else {
+          isEligible = false; // Already submitted (accepted, rejected, pending, etc.)
+        }
+      }
+
       setState(() {
         _checkingEligibility = false;
-        _isEligible = acceptedAbstract != null;
+        _isEligible = isEligible;
         _acceptedAbstractRef = acceptedAbstract?.referenceNumber;
         _acceptedAbstract = acceptedAbstract;
+        _hasExistingFullPaper = hasExisting;
+        _existingFullPaperStatus = existingStatus;
+        _existingFullPaper = existingFullPaper;
       });
     } catch (e) {
       if (!mounted) return;
@@ -81,6 +118,18 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
         _isEligible = false;
       });
     }
+  }
+
+  /// Find existing full paper submission for this user
+  Future<Submission?> _findExistingFullPaper(String uid) async {
+    final submissions = await FirestoreService.getSubmissions();
+    final fullPapers = submissions
+        .where((s) => s.uid == uid && s.submissionType == 'fullpaper')
+        .toList();
+    if (fullPapers.isEmpty) return null;
+    // Return the most recent full paper
+    fullPapers.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+    return fullPapers.first;
   }
 
   void _prefillForm(Submission abstract) {
@@ -394,6 +443,243 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
     );
   }
 
+  /// State shown when a full paper has already been accepted/rejected/pending
+  Widget _buildAlreadySubmittedState(Color accentColor) {
+    final status = _existingFullPaperStatus ?? '';
+    final isAccepted = status == 'accepted';
+    final isRejected = status == 'rejected';
+    final isPending = status == 'pending_review' || status == 'submitted' || status == 'pending' || status == 'under_review';
+
+    IconData icon;
+    Color iconColor;
+    String title;
+    String message;
+
+    if (isAccepted) {
+      icon = Icons.check_circle_rounded;
+      iconColor = Colors.greenAccent;
+      title = 'Full Paper Accepted';
+      message = 'Your full paper has already been accepted.\n\n'
+          'Reference: ${_existingFullPaper?.referenceNumber ?? ""}\n'
+          'No further submission is needed.';
+    } else if (isRejected) {
+      icon = Icons.cancel_rounded;
+      iconColor = Colors.redAccent;
+      title = 'Full Paper Rejected';
+      message = 'Your full paper submission has been reviewed and rejected.\n\n'
+          'Reference: ${_existingFullPaper?.referenceNumber ?? ""}\n'
+          'Please check your submission status for more details.';
+    } else if (isPending) {
+      icon = Icons.hourglass_top_rounded;
+      iconColor = Colors.cyanAccent;
+      title = 'Full Paper Under Review';
+      message = 'Your full paper has already been submitted and is currently under review.\n\n'
+          'Reference: ${_existingFullPaper?.referenceNumber ?? ""}\n'
+          'Please wait for the admin review.';
+    } else {
+      icon = Icons.info_rounded;
+      iconColor = Colors.blueAccent;
+      title = 'Full Paper Already Submitted';
+      message = 'You have already submitted a full paper.\n\n'
+          'Reference: ${_existingFullPaper?.referenceNumber ?? ""}\n'
+          'Current status: ${status.replaceAll("_", " ").toUpperCase()}';
+    }
+
+    return Center(
+      child: FadeTransition(
+        opacity: _animationController,
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            color: const Color(0xFF1E1B4B).withOpacity(0.4),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: iconColor.withOpacity(0.15),
+                ),
+                child: Icon(icon, size: 48, color: iconColor),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white60,
+                      height: 1.5,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('Go Back'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// State shown when a full paper needs revision — redirects to PaperRevisionScreen
+  Widget _buildRevisionRedirectState(Color accentColor) {
+    return Center(
+      child: FadeTransition(
+        opacity: _animationController,
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.orange.withOpacity(0.2)),
+            color: const Color(0xFF1E1B4B).withOpacity(0.4),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.orange.withOpacity(0.15),
+                ),
+                child: const Icon(
+                  Icons.edit_note_rounded,
+                  size: 48,
+                  color: Colors.orangeAccent,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Revision Required',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.orangeAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Your full paper (${_existingFullPaper?.referenceNumber ?? ""}) has been reviewed '
+                'and requires revisions.\n\n'
+                'Please upload a revised version addressing the reviewer feedback.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white60,
+                      height: 1.5,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              // Show admin comments if available
+              if (_existingFullPaper?.reviewComments != null &&
+                  _existingFullPaper!.reviewComments!.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.comment_rounded, size: 16, color: Colors.amberAccent),
+                          SizedBox(width: 8),
+                          Text(
+                            'Reviewer Feedback',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amberAccent,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _existingFullPaper!.reviewComments!,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 32),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                    label: const Text('Go Back'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => PaperRevisionScreen(
+                            submission: _existingFullPaper!,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.upload_file_rounded, size: 18),
+                    label: const Text('Upload Revised Paper'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 4,
+                      shadowColor: Colors.orange.withOpacity(0.3),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Custom Indigo/Violet Dark Theme
@@ -456,9 +742,13 @@ class _FullPaperSubmissionScreenState extends State<FullPaperSubmissionScreen> w
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: _checkingEligibility
                         ? _buildLoadingState()
-                        : !_isEligible
-                            ? _buildIneligibleState(accentViolet)
-                            : SingleChildScrollView(
+                        : _hasExistingFullPaper && _existingFullPaperStatus == 'accepted_with_revision'
+                            ? _buildRevisionRedirectState(accentViolet)
+                            : _hasExistingFullPaper && !_isEligible
+                                ? _buildAlreadySubmittedState(accentViolet)
+                                : !_isEligible
+                                    ? _buildIneligibleState(accentViolet)
+                                    : SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Form(
