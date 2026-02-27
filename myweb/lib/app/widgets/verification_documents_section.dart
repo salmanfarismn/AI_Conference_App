@@ -16,10 +16,13 @@ import '../../services/verification_service.dart';
 /// This widget does NOT modify any existing dashboard code.
 class VerificationDocumentsSection extends StatefulWidget {
   final Color accentColor;
+  /// When true, hides the payment receipt upload (exempt users don't pay).
+  final bool isPaymentExempted;
 
   const VerificationDocumentsSection({
     super.key,
     this.accentColor = const Color(0xFF7C4DFF),
+    this.isPaymentExempted = false,
   });
 
   @override
@@ -202,30 +205,34 @@ class _VerificationDocumentsSectionState
 
         // ID Card upload
         _buildUploadCard(
-          title: 'ID Card',
+          title: widget.isPaymentExempted ? 'College ID Card' : 'ID Card',
           subtitle: _idCardUrl != null
               ? 'Uploaded ✓'
-              : 'Government or Institution ID Card',
+              : widget.isPaymentExempted
+                  ? 'Upload your College ID for verification'
+                  : 'Government or Institution ID Card',
           icon: Icons.badge_rounded,
           imageUrl: _idCardUrl,
           isUploading: _isUploadingIdCard,
           isDisabled: isApproved,
           onUpload: _pickAndUploadIdCard,
         ),
-        const SizedBox(height: 12),
 
-        // Payment Receipt upload
-        _buildUploadCard(
-          title: 'Payment Receipt',
-          subtitle: _paymentReceiptUrl != null
-              ? 'Uploaded ✓'
-              : 'Payment receipt image for manual verification',
-          icon: Icons.receipt_long_rounded,
-          imageUrl: _paymentReceiptUrl,
-          isUploading: _isUploadingReceipt,
-          isDisabled: isApproved,
-          onUpload: _pickAndUploadReceipt,
-        ),
+        // Payment Receipt upload — hidden for exempt users (no payment = no receipt)
+        if (!widget.isPaymentExempted) ...[
+          const SizedBox(height: 12),
+          _buildUploadCard(
+            title: 'Payment Receipt',
+            subtitle: _paymentReceiptUrl != null
+                ? 'Uploaded ✓'
+                : 'Payment receipt image for manual verification',
+            icon: Icons.receipt_long_rounded,
+            imageUrl: _paymentReceiptUrl,
+            isUploading: _isUploadingReceipt,
+            isDisabled: isApproved,
+            onUpload: _pickAndUploadReceipt,
+          ),
+        ],
       ],
     );
   }

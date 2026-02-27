@@ -45,6 +45,26 @@ function getAmountForRole(role) {
 }
 
 /**
+ * AFFILIATION-BASED EXEMPTION
+ * ---------------------------
+ * Check if a user's institution/affiliation qualifies for fee waiver.
+ * Uses case-insensitive, whitespace-trimmed comparison.
+ *
+ * Exempt affiliations:
+ *   - "UC College"
+ *   - "Union Christian College"
+ *
+ * @param {string} institution - The user's institution field from Firestore
+ * @returns {boolean} true if the user is exempt from payment
+ */
+function isExemptAffiliation(institution) {
+    if (!institution || typeof institution !== "string") return false;
+    const normalized = institution.toLowerCase().trim();
+    const exemptAffiliations = ["uc college", "union christian college"];
+    return exemptAffiliations.includes(normalized);
+}
+
+/**
  * POST /create-payment
  * 
  * Request body: { uid: string }
@@ -119,6 +139,30 @@ async function createPayment(req, res) {
                 success: false,
                 error: "Payment already completed.",
                 paymentTxnId: fullPaperData.paymentTxnId,
+            });
+        }
+
+        // 3b. AFFILIATION EXEMPTION CHECK
+        // Before generating hash or calling Easebuzz, check if user
+        // is from an exempt institution.
+        const userInstitution = userData.institution || "";
+        if (isExemptAffiliation(userInstitution)) {
+            console.log(`[PAYMENT] User ${uid} is from exempt institution: "${userInstitution}". Skipping payment.`);
+
+            // Mark submission as exempted (only if not already)
+            if (fullPaperData.paymentStatus !== "exempted") {
+                await fullPaperDoc.ref.update({
+                    paymentStatus: "exempted",
+                    exemptionReason: "Institutional Fee Waiver",
+                    paymentExemptedAt: new Date().toISOString(),
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                paymentRequired: false,
+                reason: "Institutional Fee Waiver",
+                institution: userInstitution,
             });
         }
 
@@ -416,13 +460,35 @@ async function getPaymentStatus(req, res) {
 
         const data = approvedDocs[0].data();
 
+        // Fetch user profile to check institution for exemption
+        const userDoc = await db.collection("users").doc(uid).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+
+        // Check if user is from an exempt institution
+        const userInstitution = userData.institution || "";
+        const isExempt = isExemptAffiliation(userInstitution);
+
+        // If exempt but paymentStatus hasn't been set yet, auto-set it
+        if (isExempt && data.paymentStatus !== "exempted" && data.paymentStatus !== "paid") {
+            const docRef = approvedDocs[0].ref;
+            await docRef.update({
+                paymentStatus: "exempted",
+                exemptionReason: "Institutional Fee Waiver",
+                paymentExemptedAt: new Date().toISOString(),
+            });
+        }
+
         return res.status(200).json({
             success: true,
             hasApprovedPaper: true,
-            paymentStatus: data.paymentStatus || "unpaid",
+            paymentStatus: isExempt ? "exempted" : (data.paymentStatus || "unpaid"),
             paymentAmount: data.paymentAmount || null,
             paymentTxnId: data.paymentTxnId || null,
             paymentDate: data.paymentDate || null,
+            // Exemption-specific fields
+            paymentExempted: isExempt,
+            exemptionReason: isExempt ? "Institutional Fee Waiver" : null,
+            exemptInstitution: isExempt ? userInstitution : null,
         });
     } catch (error) {
         console.error("Get payment status error:", error);

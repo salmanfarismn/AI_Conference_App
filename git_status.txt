@@ -1,0 +1,14 @@
+﻿ M myweb/lib/app/screens/home_screen.dart
+ M myweb/lib/app/screens/payment_result_screen.dart
+ M myweb/lib/main.dart
+ M myweb/lib/services/payment_service.dart
+ M payment-backend/.env.example
+ M payment-backend/controllers/paymentController.js
+ M payment-backend/controllers/receiptController.js
+ M payment-backend/server.js
+?? git_status.txt
+?? myweb/lib/app/screens/attendee_registration_screen.dart
+?? payment-backend/controllers/attendeeController.js
+?? payment-backend/controllers/attendeeReceiptController.js
+?? payment-backend/routes/attendeeReceiptRoutes.js
+?? payment-backend/routes/attendeeRoutes.js

@@ -474,9 +474,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
 
         final isPaid = paymentStatus == 'paid';
-        debugPrint('[PAYMENT] ✅ User HAS an approved paper. isPaid=$isPaid');
+        final isExempted = paymentStatus == 'exempted' || data['paymentExempted'] == true;
+        debugPrint('[PAYMENT] ✅ User HAS an approved paper. isPaid=$isPaid, isExempted=$isExempted');
         if (isPaid) {
           debugPrint('[PAYMENT] 💚 Showing "Payment Completed" card + receipt options.');
+        } else if (isExempted) {
+          debugPrint('[PAYMENT] 🏛️ Showing "Fee Waived" badge + ID upload prompt.');
         } else {
           debugPrint('[PAYMENT] 🟡 Showing "Pay Conference Fee" button. paymentStatus="$paymentStatus"');
         }
@@ -547,6 +550,99 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 },
                 accentColor: Colors.teal,
               ),
+            ] else if (isExempted) ...[
+              // ─── Exemption Badge ───
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.green.withOpacity(0.08),
+                      const Color(0xFF1E1B4B).withOpacity(0.4),
+                    ],
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.verified_rounded,
+                                  color: Colors.green,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Institutional Fee Waiver Applied',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Payment Waived — ${data['exemptInstitution'] ?? 'UC College'} Participant',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green.shade300,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.green.withOpacity(0.2)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline, size: 16, color: Colors.green),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    'Fee Status: Exempted (${data['exemptInstitution'] ?? 'UC College'}). '
+                                    'Please upload your College ID card below for verification.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ] else
               _buildGlassActionCard(
                 title: 'Pay Conference Fee',
@@ -587,7 +683,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         // Show verification section when user has an approved/in-progress paper
         if (!hasApprovedPaper) return const SizedBox.shrink();
 
-        return VerificationDocumentsSection(accentColor: accentViolet);
+        final isExempted = data['paymentExempted'] == true ||
+            (data['paymentStatus'] as String?) == 'exempted';
+
+        return VerificationDocumentsSection(
+          accentColor: accentViolet,
+          isPaymentExempted: isExempted,
+        );
       },
     );
   }

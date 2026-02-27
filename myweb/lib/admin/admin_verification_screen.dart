@@ -289,6 +289,24 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
                   _buildInfoChip(Icons.school, user['institution']),
               ],
             ),
+
+            // Fee exemption badge
+            if (user['paymentExempted'] == true) ...[
+              const SizedBox(height: 8),
+              Chip(
+                avatar: const Icon(Icons.verified, size: 16, color: Colors.teal),
+                label: Text(
+                  'Fee Exempted (${user['institution'] ?? 'UC College'})',
+                  style: const TextStyle(
+                    color: Colors.teal,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                backgroundColor: Colors.teal.withOpacity(0.1),
+                side: BorderSide(color: Colors.teal.withOpacity(0.3)),
+              ),
+            ],
             const SizedBox(height: 12),
 
             // Document links

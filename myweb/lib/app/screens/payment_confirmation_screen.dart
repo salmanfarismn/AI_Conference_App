@@ -107,6 +107,18 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen>
       if (!mounted) return;
 
       if (result['success'] == true) {
+        // Handle exemption case — payment not required
+        if (result['paymentRequired'] == false) {
+          _showSnackBar(
+            'Fee Waived: ${result['reason'] ?? 'Institutional Waiver'}',
+          );
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (_) => false,
+          );
+          return;
+        }
+
         final paymentUrl = result['paymentUrl'] as String;
 
         // Launch the Easebuzz payment page in the browser

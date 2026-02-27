@@ -38,8 +38,18 @@ class PaymentService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200 && data['success'] == true) {
+        // Check if payment is exempt (affiliation-based waiver)
+        if (data['paymentRequired'] == false) {
+          return {
+            'success': true,
+            'paymentRequired': false,
+            'reason': data['reason'] ?? 'Fee Waiver Applied',
+            'institution': data['institution'] ?? '',
+          };
+        }
         return {
           'success': true,
+          'paymentRequired': true,
           'paymentUrl': data['paymentUrl'] as String,
           'accessKey': data['accessKey'] as String,
           'txnid': data['txnid'] as String,

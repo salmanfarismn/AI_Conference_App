@@ -481,19 +481,26 @@ async function adminGetVerificationList(req, res) {
         const users = [];
         usersSnap.forEach((doc) => {
             const data = doc.data();
+            const institution = data.institution || "";
+            // Check exemption status from institution
+            const normalizedInst = institution.toLowerCase().trim();
+            const isExempt = ["uc college", "union christian college"].includes(normalizedInst);
+
             users.push({
                 userId: doc.id,
                 name: data.name || "",
                 email: data.email || "",
                 phone: data.phone || "",
                 role: data.role || "",
-                institution: data.institution || "",
+                institution: institution,
                 idCardUrl: data.idCardUrl || null,
                 paymentReceiptImageUrl: data.paymentReceiptImageUrl || null,
                 verificationStatus: data.verificationStatus || "not_submitted",
                 verificationDate: data.verificationDate || null,
                 verifiedBy: data.verifiedBy || null,
                 lastDocumentUploadAt: data.lastDocumentUploadAt || null,
+                paymentExempted: isExempt,
+                exemptionReason: isExempt ? "Institutional Fee Waiver" : null,
             });
         });
 
