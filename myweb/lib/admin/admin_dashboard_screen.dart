@@ -158,9 +158,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                           items: const [
                             DropdownMenuItem(value: 'all', child: Text('All Status')),
+                            DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                            DropdownMenuItem(value: 'pending_review', child: Text('Revised')),
+                            DropdownMenuItem(value: 'accepted_with_revision', child: Text('Revision Required')),
                             DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                            DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
-                            DropdownMenuItem(value: 'pending_review', child: Text('Pending Review (Revised)')),
                             DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                           ],
                           onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
@@ -197,9 +198,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                             items: const [
                               DropdownMenuItem(value: 'all', child: Text('All Status')),
+                              DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                              DropdownMenuItem(value: 'pending_review', child: Text('Revised')),
+                              DropdownMenuItem(value: 'accepted_with_revision', child: Text('Revision Required')),
                               DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                              DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
-                              DropdownMenuItem(value: 'pending_review', child: Text('Pending Review (Revised)')),
                               DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                             ],
                             onChanged: (v) => setState(() => _statusFilter = v ?? 'all'),
@@ -344,7 +346,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _showReviewDialog(Submission submission) async {
     String selectedStatus = _mapToValidStatus(submission.status);
     final commentsController = TextEditingController(text: submission.reviewComments ?? '');
-    bool showVersionHistory = false;
+    bool showVersionHistory = submission.hasRevisions;
 
     await showDialog(
       context: context,
@@ -443,7 +445,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Version History (${submission.versions.length} previous)',
+                                'Revision History (${submission.versions.length} previous versions)',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Colors.indigo.shade700,
@@ -525,9 +527,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                      DropdownMenuItem(value: 'accepted_with_revision', child: Text('Accepted with Revision')),
-                      DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                      DropdownMenuItem(value: 'accepted', child: Text('Accept')),
+                      DropdownMenuItem(value: 'accepted_with_revision', child: Text('Request Revision')),
+                      DropdownMenuItem(value: 'rejected', child: Text('Reject')),
                     ],
                     onChanged: (v) => setDialogState(() => selectedStatus = v ?? 'pending'),
                   ),
@@ -540,7 +542,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     decoration: InputDecoration(
                       labelText: 'Review Comments',
                       hintText: selectedStatus == 'accepted_with_revision'
-                          ? 'Provide detailed feedback for the author to address in their revision...'
+                          ? 'Provide clear instructions for the author to address in their revision...'
                           : 'Add feedback for the author...',
                       border: const OutlineInputBorder(),
                       alignLabelWithHint: true,
@@ -650,7 +652,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         statusLabel = 'REVISION REQUESTED';
         break;
       case 'pending_review':
-        statusLabel = 'PENDING REVIEW';
+        statusLabel = 'REVISED';
+        break;
+      case 'pending':
+        statusLabel = 'PENDING';
         break;
       default:
         statusLabel = version.status.toUpperCase();
@@ -775,329 +780,290 @@ class _SubmissionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width <= 640;
+    final statusColor = _statusColor(submission.status);
+    final statusLabel = _statusLabel(submission.status);
+
     return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title, type badge, and version badge
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    submission.title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                // Version badge (for revised papers)
-                if (submission.submissionType == 'fullpaper' && submission.currentVersion > 1) ...[
-                  Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.indigo.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.indigo.shade200),
-                    ),
-                    child: Text(
-                      'v${submission.currentVersion}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo.shade700,
-                      ),
-                    ),
-                  ),
-                ],
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: submission.submissionType == 'fullpaper' 
-                        ? Colors.purple.shade100 
-                        : Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    submission.submissionType == 'fullpaper' ? 'Full Paper' : 'Abstract',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: submission.submissionType == 'fullpaper' 
-                          ? Colors.purple.shade700 
-                          : Colors.blue.shade700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            
-            // Reference
-            Text('Ref: ${submission.referenceNumber}'),
-            
-            // Authors
-            Text(
-              'Authors: ${submission.authorsDisplay}',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            
-            const SizedBox(height: 4),
-            
-            // Status chip + revision count
-            Row(
-              children: [
-                Chip(
-                  label: Text(_statusLabel(submission.status)),
-                  backgroundColor: Color.fromRGBO(
-                    _statusColor(submission.status).red,
-                    _statusColor(submission.status).green,
-                    _statusColor(submission.status).blue,
-                    0.15,
-                  ),
-                  labelStyle: TextStyle(color: _statusColor(submission.status)),
-                ),
-                // Revision count indicator
-                if (submission.hasRevisions && submission.submissionType == 'fullpaper') ...[
-                  const SizedBox(width: 6),
-                  Tooltip(
-                    message: '${submission.versions.length} revision(s)',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.history, size: 14, color: Colors.indigo.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${submission.versions.length}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.indigo.shade600,
-                            ),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onReview,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- SECTION 1: PAPER INFO ---
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          submission.title,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            height: 1.3,
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Ref: ${submission.referenceNumber}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _buildTypeBadge(),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Authors with better grouping
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.person_outline, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      submission.authorsDisplay,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ],
-              ],
-            ),
-            
-            if (submission.createdAt != null)
-              Text(
-                'Submitted: ${DateFormat.yMMMd().add_Hm().format(submission.createdAt!)}',
-                style: const TextStyle(fontSize: 12),
               ),
+              const Divider(height: 24),
 
-            // Review comments preview
-            if (submission.reviewComments != null && submission.reviewComments!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.comment, size: 16, color: Colors.amber.shade700),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          submission.reviewComments!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+              // --- SECTION 2: SUBMISSION INFO ---
+              Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  // Status Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withOpacity(0.5), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: statusColor,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          statusLabel,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+
+                  // Version Info
+                  if (submission.submissionType == 'fullpaper')
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.account_tree_outlined, size: 16, color: Colors.indigo.shade400),
+                        const SizedBox(width: 6),
+                        Text(
+                          submission.currentVersion > 1 
+                              ? 'Version: ${submission.currentVersion} (Revised)' 
+                              : 'Version: 1 (Original)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.indigo.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  // Date
+                  if (submission.createdAt != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Text(
+                          DateFormat.yMMMd().format(submission.createdAt!),
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
+                ],
               ),
 
-            // Preview extracted text
-            if (submission.extractedText != null &&
-                submission.extractedText!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  submission.extractedText!,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-            const SizedBox(height: 10),
-            
-            // Action buttons
-            isMobile
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: onReview,
-                        icon: const Icon(Icons.rate_review, size: 18),
-                        label: const Text('Review'),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
-                            IconButton(
-                              tooltip: 'Download PDF',
-                              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                              onPressed: () async {
-                                await launchUrlString(submission.pdfUrl!,
-                                    webOnlyWindowName: '_blank');
-                              },
-                            ),
-                          if (submission.extractedText != null &&
-                              submission.extractedText!.isNotEmpty) ...[
-                            IconButton(
-                              tooltip: 'View Full Text',
-                              icon: const Icon(Icons.article_outlined),
-                              onPressed: () async {
-                                final encoded = Uri.dataFromString(
-                                  submission.extractedText!,
-                                  mimeType: 'text/plain',
-                                  encoding: utf8,
-                                ).toString();
-                                await launchUrlString(encoded,
-                                    webOnlyWindowName: '_blank');
-                              },
-                            ),
-                            IconButton(
-                              tooltip: 'Export as PDF',
-                              icon: const Icon(Icons.download),
-                              onPressed: () async {
-                                final pdf = pw.Document();
-                                pdf.addPage(
-                                  pw.Page(
-                                    build: (context) => pw.Column(
-                                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                                      children: [
-                                        pw.Text(
-                                            'Reference: ${submission.referenceNumber}',
-                                            style: pw.TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: pw.FontWeight.bold)),
-                                        pw.Text('Title: ${submission.title}',
-                                            style: pw.TextStyle(fontSize: 12)),
-                                        pw.Text('Authors: ${submission.authorsDisplay}',
-                                            style: pw.TextStyle(fontSize: 12)),
-                                        pw.SizedBox(height: 10),
-                                        pw.Text(submission.extractedText!,
-                                            style: pw.TextStyle(fontSize: 11)),
-                                      ],
-                                    ),
-                                  ),
-                                );
-
-                                final bytes = await pdf.save();
-                                await FileSaver.instance.saveFile(
-                                  '${submission.referenceNumber}.pdf',
-                                  Uint8List.fromList(bytes),
-                                  "pdf",
-                                  mimeType: MimeType.PDF,
-                                );
-                              },
+              // --- SECTION 3: ADMIN ACTIONS & COMMENTS ---
+              if (submission.reviewComments != null && submission.reviewComments!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.comment_outlined, size: 14, color: Colors.amber.shade800),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Latest Admin Comment:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber.shade900,
+                              ),
                             ),
                           ],
-                        ],
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      // Review button
-                      FilledButton.icon(
-                        onPressed: onReview,
-                        icon: const Icon(Icons.rate_review, size: 18),
-                        label: const Text('Review'),
-                      ),
-                      const Spacer(),
-
-                      // Download PDF
-                      if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
-                        IconButton(
-                          tooltip: 'Download PDF',
-                          icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                          onPressed: () async {
-                            await launchUrlString(submission.pdfUrl!,
-                                webOnlyWindowName: '_blank');
-                          },
                         ),
-
-                      // View Full Text
-                      if (submission.extractedText != null &&
-                          submission.extractedText!.isNotEmpty)
-                        IconButton(
-                          tooltip: 'View Full Text',
-                          icon: const Icon(Icons.article_outlined),
-                          onPressed: () async {
-                            final encoded = Uri.dataFromString(
-                              submission.extractedText!,
-                              mimeType: 'text/plain',
-                              encoding: utf8,
-                            ).toString();
-                            await launchUrlString(encoded,
-                                webOnlyWindowName: '_blank');
-                          },
+                        const SizedBox(height: 4),
+                        Text(
+                          submission.reviewComments!,
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade800, height: 1.4),
                         ),
-
-                      // Download as PDF
-                      if (submission.extractedText != null &&
-                          submission.extractedText!.isNotEmpty)
-                        IconButton(
-                          tooltip: 'Export as PDF',
-                          icon: const Icon(Icons.download),
-                          onPressed: () async {
-                            final pdf = pw.Document();
-                            pdf.addPage(
-                              pw.Page(
-                                build: (context) => pw.Column(
-                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                                  children: [
-                                    pw.Text(
-                                        'Reference: ${submission.referenceNumber}',
-                                        style: pw.TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: pw.FontWeight.bold)),
-                                    pw.Text('Title: ${submission.title}',
-                                        style: pw.TextStyle(fontSize: 12)),
-                                    pw.Text('Authors: ${submission.authorsDisplay}',
-                                        style: pw.TextStyle(fontSize: 12)),
-                                    pw.SizedBox(height: 10),
-                                    pw.Text(submission.extractedText!,
-                                        style: pw.TextStyle(fontSize: 11)),
-                                  ],
-                                ),
-                              ),
-                            );
-
-                            final bytes = await pdf.save();
-                            await FileSaver.instance.saveFile(
-                              '${submission.referenceNumber}.pdf',
-                              Uint8List.fromList(bytes),
-                              "pdf",
-                              mimeType: MimeType.PDF,
-                            );
-                          },
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
+                ),
+
+              const SizedBox(height: 16),
+              
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: onReview,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.rate_review_outlined, size: 18),
+                    label: const Text('Evaluate Submission'),
+                  ),
+                  const Spacer(),
+                  _buildQuickActions(context),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeBadge() {
+    final isFullPaper = submission.submissionType == 'fullpaper';
+    final color = isFullPaper ? Colors.purple : Colors.blue;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.shade200),
+      ),
+      child: Text(
+        isFullPaper ? 'Full Paper' : 'Abstract',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: color.shade700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (submission.pdfUrl != null && submission.pdfUrl!.isNotEmpty)
+          _QuickActionButton(
+            icon: Icons.picture_as_pdf_outlined,
+            tooltip: 'View PDF',
+            onPressed: () => launchUrlString(submission.pdfUrl!, webOnlyWindowName: '_blank'),
+            color: Colors.red.shade600,
+          ),
+        if (submission.extractedText != null && submission.extractedText!.isNotEmpty) ...[
+          _QuickActionButton(
+            icon: Icons.article_outlined,
+            tooltip: 'View Text',
+            onPressed: () async {
+              final encoded = Uri.dataFromString(
+                submission.extractedText!,
+                mimeType: 'text/plain',
+                encoding: utf8,
+              ).toString();
+              await launchUrlString(encoded, webOnlyWindowName: '_blank');
+            },
+            color: Colors.blue.shade600,
+          ),
+          _QuickActionButton(
+            icon: Icons.download_outlined,
+            tooltip: 'Export PDF',
+            onPressed: () => _exportAsPdf(submission),
+            color: Colors.green.shade600,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _exportAsPdf(Submission submission) async {
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Reference: ${submission.referenceNumber}',
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Title: ${submission.title}', style: pw.TextStyle(fontSize: 12)),
+            pw.Text('Authors: ${submission.authorsDisplay}', style: pw.TextStyle(fontSize: 12)),
+            pw.SizedBox(height: 10),
+            pw.Text(submission.extractedText!, style: pw.TextStyle(fontSize: 11)),
           ],
         ),
       ),
+    );
+
+    final bytes = await pdf.save();
+    await FileSaver.instance.saveFile(
+      '${submission.referenceNumber}.pdf',
+      Uint8List.fromList(bytes),
+      "pdf",
+      mimeType: MimeType.PDF,
     );
   }
 
@@ -1108,7 +1074,9 @@ class _SubmissionCard extends StatelessWidget {
       case 'accepted_with_revision':
         return 'REVISION REQUIRED';
       case 'pending_review':
-        return 'PENDING REVIEW';
+        return 'REVISED';
+      case 'pending':
+        return 'PENDING';
       case 'rejected':
         return 'REJECTED';
       default:
@@ -1124,10 +1092,38 @@ class _SubmissionCard extends StatelessWidget {
         return Colors.orange;
       case 'pending_review':
         return Colors.blue;
+      case 'pending':
+        return Colors.amber;
       case 'rejected':
         return Colors.red;
       default:
         return Colors.grey;
     }
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Color color;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      icon: Icon(icon, color: color, size: 22),
+      constraints: const BoxConstraints(),
+      padding: const EdgeInsets.all(8),
+      splashRadius: 24,
+    );
   }
 }
